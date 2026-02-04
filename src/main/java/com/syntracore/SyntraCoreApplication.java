@@ -1,56 +1,44 @@
 package com.syntracore;
 
-import com.syntracore.core.domain.SupportTicket;
-import com.syntracore.core.ports.TicketRepositoryPort;
+import com.syntracore.core.services.TicketService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
 /**
- * Hauptklasse der SyntraCore-Anwendung.
+ * Einstiegspunkt der SyntraCore Spring-Boot-Anwendung.
  *
- * Diese Klasse ist der Einstiegspunkt der Spring-Boot-Anwendung und startet:
- * - Den Spring-Application-Context
- * - Den eingebetteten Webserver (z.B. Tomcat)
- * - Alle konfigurierten Beans und Komponenten
+ * Startet den Spring-Kontext, den eingebetteten Server und führt
+ * nach dem Start einen einfachen Herzschlag-Test über den Service aus.
  */
 @SpringBootApplication
 public class SyntraCoreApplication {
 
     /**
-     * Hauptmethode: Startet die Spring-Boot-Anwendung.
-     *
-     * @param args Kommandozeilenargumente (werden an Spring weitergegeben)
+     * Main-Methode: Bootstrapped die Anwendung.
      */
     public static void main(String[] args) {
         SpringApplication.run(SyntraCoreApplication.class, args);
     }
 
     /**
-     * CommandLineRunner Bean: Wird automatisch nach dem Start der Anwendung ausgeführt.
+     * CommandLineRunner, der direkt nach dem Start der Anwendung ausgeführt wird.
      *
-     * Dieser "Herzschlag-Test" dient dazu:
-     * - Die Verbindung zwischen Domain-Layer und Datenbank-Adapter zu testen
-     * - Zu prüfen, ob die Datenbank korrekt konfiguriert ist
-     * - Ein Beispiel-Ticket zu erstellen und zu speichern
-     *
-     * @param ticketPort Das Repository-Interface (wird automatisch von Spring injiziert)
-     * @return CommandLineRunner, der beim Start ausgeführt wird
+     * Hier wird ein vollständiger Durchlauf durch die Kette getestet:
+     * - Service erzeugt ein Ticket
+     * - KI-Adapter liefert eine Analyse
+     * - Ticket wird inklusive KI-Ergebnis in der Datenbank gespeichert
      */
     @Bean
-    public CommandLineRunner heartbeatTest(TicketRepositoryPort ticketPort) {
+    public CommandLineRunner heartbeatTest(TicketService ticketService) {
         return args -> {
-            System.out.println("💓 SyntraCore Herzschlag-Test startet...");
+            System.out.println("💓 SyntraCore Herzschlag-Test Phase 2 startet...");
 
-            // Schritt 1: Erstelle ein Domain-Objekt (reine Business-Logik, keine DB-Abhängigkeit)
-            SupportTicket testTicket = new SupportTicket("Junior Admin", "System-Check: Läuft die DB?");
+            // Aufruf über den Service: Domain + AI + Datenbank in einem Ablauf
+            ticketService.createAndProcessTicket("Junior Developer", "Test: Funktioniert die KI-Kette?");
 
-            // Schritt 2: Speichere über das Port-Interface (hexagonale Architektur)
-            // Spring injiziert automatisch die konkrete Implementierung (TicketDatabaseAdapter)
-            ticketPort.save(testTicket);
-
-            System.out.println("✅ Herzschlag-Test erfolgreich! System ist bereit.");
+            System.out.println("✅ Herzschlag-Test erfolgreich!");
         };
     }
 }

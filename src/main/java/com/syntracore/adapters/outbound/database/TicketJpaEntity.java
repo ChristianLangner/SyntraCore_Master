@@ -43,9 +43,15 @@ public class TicketJpaEntity {
      */
     private LocalDateTime createdAt;
 
+
     /**
-     * Leerer Standard-Konstruktor.
-     * Wird von JPA zwingend benötigt, um Objekte aus der Datenbank zu instanziieren.
+     * Das Ergebnis der KI-Analyse.
+     * Wir nutzen 'columnDefinition = "TEXT"', damit das Feld in der Datenbank
+     * fast unbegrenzt Text speichern kann (statt nur 255 Zeichen).
      */
+    @Column(columnDefinition = "TEXT")
+    private String aiAnalysis;
+
+
     public TicketJpaEntity() {}
 }

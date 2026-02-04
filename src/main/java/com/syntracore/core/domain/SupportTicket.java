@@ -6,25 +6,25 @@ import java.util.UUID;
 /**
  * Domain-Modell für ein Support-Ticket.
  *
- * Diese Klasse enthält die fachliche Repräsentation eines Tickets
- * und ist bewusst frei von Framework-Abhängigkeiten (kein JPA, kein Spring).
- * So bleibt die Business-Logik unabhängig von der technischen Infrastruktur.
+ * Diese Klasse beschreibt das fachliche Ticket unabhängig von
+ * technischen Details wie Datenbank oder Frameworks.
+ * Sie wird sowohl vom Service als auch von den Ports/Adaptern verwendet.
  */
 public class SupportTicket {
 
     /**
-     * Fachliche ID des Tickets.
-     * Wird bei Erstellung als zufällige UUID generiert.
+     * Eindeutige Ticket-ID.
+     * Wird beim Erzeugen automatisch als UUID generiert.
      */
     private UUID id;
 
     /**
-     * Name des Kunden, der das Ticket erstellt.
+     * Name der Person, die das Ticket erstellt hat.
      */
     private String customerName;
 
     /**
-     * Inhalt des Tickets (Problem-/Fehlerbeschreibung).
+     * Beschreibung bzw. Nachricht des Tickets.
      */
     private String message;
 
@@ -34,19 +34,33 @@ public class SupportTicket {
     private LocalDateTime createdAt;
 
     /**
-     * Konstruktor, der ein neues Ticket mit Name und Nachricht erzeugt.
-     * Die ID und das Erstellungsdatum werden automatisch gesetzt.
+     * Ergebnis der KI-Analyse zu diesem Ticket.
+     * Wird erst später im Verarbeitungsprozess gesetzt.
+     */
+    private String aiAnalysis;
+
+    /**
+     * Erzeugt ein neues Support-Ticket mit Name und Nachricht.
+     * ID und Erstellungszeit werden automatisch gesetzt.
      */
     public SupportTicket(String customerName, String message) {
-        this.id = UUID.randomUUID();        // Erzeugt eine neue eindeutige Ticket-ID
-        this.customerName = customerName;   // Setzt den Kundennamen
-        this.message = message;             // Setzt die Ticket-Nachricht
-        this.createdAt = LocalDateTime.now(); // Timestamp zum Zeitpunkt der Erstellung
+        this.id = UUID.randomUUID();
+        this.customerName = customerName;
+        this.message = message;
+        this.createdAt = LocalDateTime.now();
     }
 
-    // Getter (Damit andere Klassen die Daten lesen können, ohne die Felder direkt zu verändern)
+    // Nur Lesezugriff von außen (Immutable-Sicht nach außen)
     public UUID getId() { return id; }
     public String getCustomerName() { return customerName; }
     public String getMessage() { return message; }
     public LocalDateTime getCreatedAt() { return createdAt; }
+    public String getAiAnalysis() { return aiAnalysis; }
+
+    /**
+     * Setzt das KI-Analyse-Ergebnis für dieses Ticket.
+     */
+    public void setAiAnalysis(String aiAnalysis) {
+        this.aiAnalysis = aiAnalysis;
+    }
 }

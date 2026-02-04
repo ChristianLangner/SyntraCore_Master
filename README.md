@@ -9,56 +9,63 @@ SyntraCore ist ein Spring-Boot-basiertes Backend-System, das nach den Prinzipien
 Das Projekt folgt der **Hexagonalen Architektur** (Ports & Adapters), die eine klare Trennung zwischen Business-Logik und technischer Infrastruktur ermöglicht:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Application Layer                     │
-│              (SyntraCoreApplication)                     │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Domain Layer                          │
-│  ┌──────────────────┐      ┌──────────────────────┐     │
-│  │  SupportTicket   │      │ TicketRepositoryPort │     │
-│  │  (Domain Model)  │      │    (Port Interface)  │     │
-│  └──────────────────┘      └──────────────────────┘     │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Adapter Layer                           │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │     TicketDatabaseAdapter                        │   │
-│  │     (implementiert TicketRepositoryPort)         │   │
-│  └──────────────────────────────────────────────────┘   │
-│                         │                                │
-│                         ▼                                │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │     SpringDataTicketRepository                   │   │
-│  │     TicketJpaEntity                              │   │
-│  └──────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Database (H2 In-Memory)               │
-└─────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────┐
+│                       Application Layer                       │
+│                  (SyntraCoreApplication)                      │
+└───────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────────┐
+│                         Service Layer                         │
+│                   (TicketService, Use Cases)                  │
+└───────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────────┐
+│                         Domain Layer                          │
+│  ┌──────────────────┐     ┌──────────────────────┐           │
+│  │  SupportTicket   │     │ TicketRepositoryPort │           │
+│  │  (Domain Model)  │     │ AiServicePort        │           │
+│  └──────────────────┘     └──────────────────────┘           │
+└───────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────────┐
+│                         Adapter Layer                         │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │   TicketDatabaseAdapter (implements TicketRepositoryPort) │
+│  │   SpringDataTicketRepository + TicketJpaEntity           │
+│  └─────────────────────────────────────────────────────────┘  │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │   OpenAiAdapter (implements AiServicePort)              │
+│  └─────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌───────────────────────────────────────────────────────────────┐
+│           Database (H2 In-Memory) + externer KI-Dienst        │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ### Schichten-Erklärung:
 
 1. **Domain Layer** (`core/domain`, `core/ports`)
    - Enthält die reine Business-Logik ohne Framework-Abhängigkeiten
-   - `SupportTicket`: Domain-Modell für ein Support-Ticket
+   - `SupportTicket`: Domain-Modell für ein Support-Ticket inkl. KI-Analysefeld
    - `TicketRepositoryPort`: Interface (Port) für das Speichern von Tickets
+   - `AiServicePort`: Interface (Port) für KI-Analysen
 
-2. **Adapter Layer** (`adapters/outbound/database`)
-   - Verbindet das Domain-Layer mit der technischen Infrastruktur
-   - `TicketDatabaseAdapter`: Implementiert das Port-Interface und übersetzt Domain-Objekte in JPA-Entitäten
-   - `TicketJpaEntity`: JPA-Entität für die Datenbank
+2. **Service Layer** (`core/services`)
+   - `TicketService`: Orchestriert die Schritte Ticket erstellen → KI aufrufen → speichern
+
+3. **Adapter Layer** (`adapters/outbound/...`)
+   - `TicketDatabaseAdapter`: Implementiert `TicketRepositoryPort` und übersetzt Domain-Objekte in JPA-Entitäten
+   - `TicketJpaEntity`: JPA-Entität für die Datenbank (inkl. Feld für KI-Analyse)
    - `SpringDataTicketRepository`: Spring Data Repository für Datenbankoperationen
+   - `OpenAiAdapter`: Implementiert `AiServicePort` und liefert aktuell eine simulierte KI-Antwort
 
-3. **Application Layer**
-   - `SyntraCoreApplication`: Startet die Anwendung und führt einen Herzschlag-Test durch
+4. **Application Layer**
+   - `SyntraCoreApplication`: Startet die Anwendung und führt einen Herzschlag-Test über den `TicketService` durch
 
 ## 🛠️ Technologie-Stack
 
@@ -69,17 +76,19 @@ Das Projekt folgt der **Hexagonalen Architektur** (Ports & Adapters), die eine k
 - **Lombok**: Reduziert Boilerplate-Code (Getter/Setter)
 - **Maven**: Build-Tool und Dependency-Management
 
-## ✅ Aktueller Stand (Step 1: Backend & Database)
+## ✅ Aktueller Stand (Backend, Database & erste KI-Anbindung)
 
 ### Was ist fertig:
 
-- ✅ **Domain-Modell**: `SupportTicket` Klasse mit Business-Logik
-- ✅ **Port-Interface**: `TicketRepositoryPort` für Repository-Operationen
+- ✅ **Domain-Modell**: `SupportTicket` Klasse mit Business-Logik und KI-Ergebnisfeld
+- ✅ **Port-Interfaces**: `TicketRepositoryPort` (DB) und `AiServicePort` (KI)
+- ✅ **Service-Layer**: `TicketService` orchestriert Ticket-Erstellung, KI-Aufruf und Persistierung
 - ✅ **Datenbank-Adapter**: `TicketDatabaseAdapter` verbindet Domain mit DB
-- ✅ **JPA-Entität**: `TicketJpaEntity` für Datenbank-Persistierung
+- ✅ **JPA-Entität**: `TicketJpaEntity` für Datenbank-Persistierung (inkl. KI-Analyse)
 - ✅ **Spring Data Repository**: `SpringDataTicketRepository` für CRUD-Operationen
 - ✅ **H2-Datenbank**: Konfiguriert und läuft im In-Memory-Modus
-- ✅ **Herzschlag-Test**: Automatischer Test beim Start, der die Verbindung prüft
+- ✅ **KI-Adapter**: `OpenAiAdapter` simuliert aktuell eine KI-Antwort
+- ✅ **Herzschlag-Test**: Automatischer End-to-End-Test beim Start über den `TicketService`
 - ✅ **Alle Dateien kommentiert**: Ausführliche JavaDoc- und Inline-Kommentare
 
 ### Was noch kommt:
@@ -149,10 +158,11 @@ src/main/resources/
 ## 📝 Nächste Schritte
 
 1. **REST-API Controller** erstellen für Ticket-Operationen
-2. **Use Cases** implementieren (z.B. `CreateTicketUseCase`)
-3. **Telegram-Bot** integrieren
-4. **Validierung** hinzufügen
-5. **Tests** schreiben
+2. **Use Cases / Services** weiter ausbauen (z.B. unterschiedliche Ticket-Typen)
+3. **Echte OpenAI-/KI-Anbindung** implementieren (anstatt der aktuellen Demo-Antwort)
+4. **Telegram-Bot** integrieren
+5. **Validierung** hinzufügen
+6. **Tests** schreiben (Unit- und Integrationstests)
 
 ---
 
