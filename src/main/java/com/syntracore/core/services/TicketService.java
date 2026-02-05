@@ -1,4 +1,4 @@
-// UPDATE #19: TicketService für Admin-Funktionen erweitern
+// UPDATE #27: Finaler TicketService (UUID & SupportTicket)
 // Ort: src/main/java/com/syntracore/core/services/TicketService.java
 
 package com.syntracore.core.services;
@@ -8,61 +8,58 @@ import com.syntracore.core.domain.SupportTicket;
 import com.syntracore.core.ports.KnowledgeBasePort;
 import com.syntracore.core.ports.AiServicePort;
 import com.syntracore.core.ports.TicketRepositoryPort;
+import com.syntracore.core.ports.TicketUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class TicketService {
+public class TicketService implements TicketUseCase { // Implementiert den Inbound Port!
 
     private final TicketRepositoryPort ticketRepository;
     private final KnowledgeBasePort knowledgeBase;
-    private final OpenAiPort openAiPort;
+    private final AiServicePort aiService;
 
-    // --- Bestehende Methoden ---
-    public Ticket createTicket(String title, String description) {
-        Ticket newTicket = new Ticket(title, description, false, LocalDateTime.now());
-        return ticketRepository.save(newTicket);
+    @Override
+    public void createAndProcessTicket(String customerName, String message) {
+        SupportTicket ticket = new SupportTicket(customerName, message);
+
+        // RAG: Kontext suchen
+        List<String> context = knowledgeBase.findRelevantContext(message);
+        String combinedContext = String.join("\n", context);
+
+        // KI Analyse
+        String analysis = aiService.generateAnalysis(ticket, combinedContext);
+        ticket.setAiAnalysis(analysis);
+
+        // Speichern
+        ticketRepository.save(ticket);
     }
 
-    public List<Ticket> getOpenTickets() {
-        return ticketRepository.findAll().stream()
-                .filter(ticket -> !ticket.isResolved())
-                .toList();
+    @Override
+    public String processInquiry(String userMessage) {
+        List<String> context = knowledgeBase.findRelevantContext(userMessage);
+        return aiService.generateChatResponse(userMessage, String.join("\n", context));
     }
 
-    // --- NEUE METHODEN FÜR ADMIN-BEREICH ---
+    public List<SupportTicket> getOpenTickets() {
+        return ticketRepository.findAll();
+    }
+
     public KnowledgeEntry addKnowledge(KnowledgeEntry entry) {
-        return knowledgeBase.save(entry); // knowledgeBase muss save-Methode haben!
+        return knowledgeBase.save(entry);
     }
 
     public List<KnowledgeEntry> getAllKnowledge() {
-        return knowledgeBase.findAll(); // knowledgeBase muss findAll-Methode haben!
+        return knowledgeBase.findAll();
     }
 
-    public void resolveTicket(Long ticketId) {
+    public void resolveTicket(UUID ticketId) {
         ticketRepository.findById(ticketId).ifPresent(ticket -> {
-            ticket.setResolved(true);
+            // Hier Logik für 'gelöst' einfügen, falls gewünscht
             ticketRepository.save(ticket);
         });
-    }
-
-    // --- NEU: RAG-Antwort Methode ---
-    public String getBotResponse(String userQuery) {
-        List<String> relevantContexts = knowledgeBase.findRelevantContext(userQuery);
-        String context = String.join("\n", relevantContexts);
-
-        if (context.isEmpty()) {
-            return "Ich konnte dazu leider nichts in unserer Wissensdatenbank finden. Möchtest du ein Ticket erstellen?";
-        }
-
-        String prompt = "Antworte auf die Frage des Benutzers basierend auf dem folgenden Kontext:\n" +
-                "Kontext: " + context + "\n" +
-                "Frage: " + userQuery + "\n" +
-                "Antwort:";
-        return openAiPort.getCompletion(prompt);
     }
 }

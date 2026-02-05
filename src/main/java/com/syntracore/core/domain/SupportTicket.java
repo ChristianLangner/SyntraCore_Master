@@ -1,68 +1,34 @@
-// UPDATE #24: TicketService an SupportTicket (UUID) angepasst
-// Zweck: Zentrale Logik für Tickets und Wissens-Management
-// Ort: src/main/java/com/syntracore/core/services/TicketService.java
+// UPDATE #31: REVIDIERTES Domain-Modell (Inhalt korrigiert)
+// Zweck: Reine Datenhaltung für Tickets ohne Service-Logik
+// Ort: src/main/java/com/syntracore/core/domain/SupportTicket.java
 
-package com.syntracore.core.services;
+package com.syntracore.core.domain;
 
-import com.syntracore.core.domain.KnowledgeEntry;
-import com.syntracore.core.domain.SupportTicket;
-import com.syntracore.core.ports.KnowledgeBasePort;
-import com.syntracore.core.ports.AiServicePort;
-import com.syntracore.core.ports.TicketRepositoryPort;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import java.util.List;
+import java.time.LocalDateTime;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
-@Service
-@RequiredArgsConstructor
-public class TicketService {
+/**
+ * Das fachliche Herzstück eines Support-Tickets.
+ * Hier fließen keine Spring-Abhängigkeiten ein.
+ */
+@Getter
+@Setter
+public class SupportTicket {
 
-    private final TicketRepositoryPort ticketRepository;
-    private final KnowledgeBasePort knowledgeBase;
-    private final AiServicePort aiService; // Umbenannt von openAiPort für Port-Konsistenz
+    private UUID id;
+    private String customerName;
+    private String message;
+    private LocalDateTime createdAt;
+    private String aiAnalysis;
+    private boolean resolved; // Neu hinzugefügt für die Admin-Logik
 
-    // --- Ticket Methoden ---
-    public SupportTicket createTicket(String customerName, String message) {
-        SupportTicket newTicket = new SupportTicket(customerName, message);
-        ticketRepository.save(newTicket);
-        return newTicket;
-    }
-
-    public List<SupportTicket> getAllTickets() {
-        return ticketRepository.findAll();
-    }
-
-    public void resolveTicket(UUID ticketId) {
-        ticketRepository.findById(ticketId).ifPresent(ticket -> {
-            // Hier könnte man ein Status-Feld im SupportTicket ergänzen
-            // Da SupportTicket aktuell kein 'resolved' Feld hat, speichern wir es einfach neu
-            ticketRepository.save(ticket);
-        });
-    }
-
-    // --- Wissens-Management (Admin) ---
-    public KnowledgeEntry addKnowledge(KnowledgeEntry entry) {
-        return knowledgeBase.save(entry);
-    }
-
-    public List<KnowledgeEntry> getAllKnowledge() {
-        return knowledgeBase.findAll();
-    }
-
-    // --- RAG-Logik ---
-    public String getBotResponse(String userQuery) {
-        List<String> relevantContexts = knowledgeBase.findRelevantContext(userQuery);
-        String context = String.join("\n", relevantContexts);
-
-        if (context.isEmpty()) {
-            return "Ich konnte dazu leider nichts in unserer Wissensdatenbank finden. Möchtest du ein Ticket erstellen?";
-        }
-
-        String prompt = "Antworte auf die Frage des Benutzers basierend auf dem folgenden Kontext:\n" +
-                "Kontext: " + context + "\n" +
-                "Frage: " + userQuery;
-
-        return aiService.getCompletion(prompt);
+    public SupportTicket(String customerName, String message) {
+        this.id = UUID.randomUUID();
+        this.customerName = customerName;
+        this.message = message;
+        this.createdAt = LocalDateTime.now();
+        this.resolved = false;
     }
 }

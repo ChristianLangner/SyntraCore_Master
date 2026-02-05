@@ -1,5 +1,4 @@
-// UPDATE #8: Domain-Modell für Wissenseinträge
-// Zweck: Speicherung von Handbuch-Fragmenten in der Datenbank
+// UPDATE #29: Flexibler Konstruktor für KnowledgeEntry
 // Ort: src/main/java/com/syntracore/core/domain/KnowledgeEntry.java
 
 package com.syntracore.core.domain;
@@ -14,7 +13,15 @@ import java.util.UUID;
 @NoArgsConstructor
 public class KnowledgeEntry {
     private UUID id;
-    private String content; // Der eigentliche Handbuch-Text
-    private String source;  // z.B. "Benutzerhandbuch_V1.pdf"
-    private String category; // z.B. "Installation"
+    private String content;
+    private String source;
+    private String category;
+
+    // NEU: Bequemer Konstruktor für den AdminController
+    public KnowledgeEntry(String category, String content) {
+        this.id = UUID.randomUUID(); // Generiert die ID automatisch
+        this.category = category;
+        this.content = content;
+        this.source = "Admin Ingest";
+    }
 }

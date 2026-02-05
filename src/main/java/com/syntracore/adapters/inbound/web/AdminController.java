@@ -1,19 +1,16 @@
-// UPDATE #17: Admin-Controller zum Verwalten des Wissens
-// Ort: src/main/java/com/syntracore/web/AdminController.java
+// UPDATE #30: Korrigierter AdminController (UUID-kompatibel)
+// Ort: src/main/java/com/syntracore/adapters/inbound/web/AdminController.java
 
-package com.syntracore.web;
+package com.syntracore.web; // Achte darauf, dass das Package zu deiner Ordnerstruktur passt!
 
 import com.syntracore.core.domain.KnowledgeEntry;
-import com.syntracore.core.domain.Ticket;
+import com.syntracore.core.domain.SupportTicket;
 import com.syntracore.core.services.TicketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
+import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin")
@@ -24,29 +21,22 @@ public class AdminController {
 
     @GetMapping
     public String adminPage(Model model) {
-        // Fügt das aktuelle Wissen und offene Tickets zum Model hinzu
-        // Damit können wir es in der HTML-Seite anzeigen
         model.addAttribute("knowledgeEntries", ticketService.getAllKnowledge());
-        model.addAttribute("openTickets", ticketService.getOpenTickets());
-        return "admin"; // Verweist auf admin.html
+        model.addAttribute("openTickets", ticketService.getAllTickets()); // Geändert von getOpenTickets
+        return "admin";
     }
 
     @PostMapping("/add-knowledge")
     public String addKnowledge(@RequestParam String category, @RequestParam String content) {
+        // Nutzt jetzt den neuen bequemen Konstruktor
         ticketService.addKnowledge(new KnowledgeEntry(category, content));
-        return "redirect:/admin"; // Nach dem Speichern zurück zur Admin-Seite
-    }
-
-    @PostMapping("/resolve-ticket")
-    public String resolveTicket(@RequestParam Long ticketId) {
-        ticketService.resolveTicket(ticketId);
         return "redirect:/admin";
     }
 
-    @PostMapping("/delete-knowledge")
-    public String deleteKnowledge(@RequestParam Long knowledgeId) {
-        // Hier müsste im TicketService eine Methode zum Löschen implementiert werden
-        // Für den Anfang lassen wir es weg, um es einfach zu halten
+    @PostMapping("/resolve-ticket")
+    public String resolveTicket(@RequestParam String ticketId) {
+        // Konvertiert den String aus dem Formular in eine UUID
+        ticketService.resolveTicket(UUID.fromString(ticketId));
         return "redirect:/admin";
     }
 }
