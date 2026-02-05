@@ -1,4 +1,4 @@
-// UPDATE #27: Finaler TicketService (UUID & SupportTicket)
+// UPDATE #33: TicketService mit korrekter getAllTickets Methode
 // Ort: src/main/java/com/syntracore/core/services/TicketService.java
 
 package com.syntracore.core.services;
@@ -16,7 +16,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class TicketService implements TicketUseCase { // Implementiert den Inbound Port!
+public class TicketService implements TicketUseCase {
 
     private final TicketRepositoryPort ticketRepository;
     private final KnowledgeBasePort knowledgeBase;
@@ -25,16 +25,10 @@ public class TicketService implements TicketUseCase { // Implementiert den Inbou
     @Override
     public void createAndProcessTicket(String customerName, String message) {
         SupportTicket ticket = new SupportTicket(customerName, message);
-
-        // RAG: Kontext suchen
         List<String> context = knowledgeBase.findRelevantContext(message);
         String combinedContext = String.join("\n", context);
-
-        // KI Analyse
         String analysis = aiService.generateAnalysis(ticket, combinedContext);
         ticket.setAiAnalysis(analysis);
-
-        // Speichern
         ticketRepository.save(ticket);
     }
 
@@ -44,7 +38,8 @@ public class TicketService implements TicketUseCase { // Implementiert den Inbou
         return aiService.generateChatResponse(userMessage, String.join("\n", context));
     }
 
-    public List<SupportTicket> getOpenTickets() {
+    // Diese Methode wird vom AdminController gesucht
+    public List<SupportTicket> getAllTickets() {
         return ticketRepository.findAll();
     }
 
@@ -58,7 +53,7 @@ public class TicketService implements TicketUseCase { // Implementiert den Inbou
 
     public void resolveTicket(UUID ticketId) {
         ticketRepository.findById(ticketId).ifPresent(ticket -> {
-            // Hier Logik für 'gelöst' einfügen, falls gewünscht
+            ticket.setResolved(true);
             ticketRepository.save(ticket);
         });
     }

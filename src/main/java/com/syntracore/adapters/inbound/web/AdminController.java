@@ -1,7 +1,7 @@
-// UPDATE #30: Korrigierter AdminController (UUID-kompatibel)
+// UPDATE #36: AdminController Finaler Fix
 // Ort: src/main/java/com/syntracore/adapters/inbound/web/AdminController.java
 
-package com.syntracore.web; // Achte darauf, dass das Package zu deiner Ordnerstruktur passt!
+package com.syntracore.adapters.inbound.web;
 
 import com.syntracore.core.domain.KnowledgeEntry;
 import com.syntracore.core.domain.SupportTicket;
@@ -22,20 +22,19 @@ public class AdminController {
     @GetMapping
     public String adminPage(Model model) {
         model.addAttribute("knowledgeEntries", ticketService.getAllKnowledge());
-        model.addAttribute("openTickets", ticketService.getAllTickets()); // Geändert von getOpenTickets
+        // Nutzt getAllTickets() aus dem Service
+        model.addAttribute("openTickets", ticketService.getAllTickets());
         return "admin";
     }
 
     @PostMapping("/add-knowledge")
     public String addKnowledge(@RequestParam String category, @RequestParam String content) {
-        // Nutzt jetzt den neuen bequemen Konstruktor
         ticketService.addKnowledge(new KnowledgeEntry(category, content));
         return "redirect:/admin";
     }
 
     @PostMapping("/resolve-ticket")
     public String resolveTicket(@RequestParam String ticketId) {
-        // Konvertiert den String aus dem Formular in eine UUID
         ticketService.resolveTicket(UUID.fromString(ticketId));
         return "redirect:/admin";
     }
