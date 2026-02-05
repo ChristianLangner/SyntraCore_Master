@@ -77,4 +77,7 @@ public interface AiServicePort {
      * @throws NullPointerException wenn ticket null ist (abhängig von Implementierung)
      */
     String generateAnalysis(SupportTicket ticket, String context);
+
+    /** Verarbeitet eine direkte Chat-Anfrage (neu für WebSockets). */
+    String generateChatResponse(String userPrompt, String context);
 }

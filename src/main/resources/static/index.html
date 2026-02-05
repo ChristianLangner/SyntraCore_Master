@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>SyntraCore | KI-Live-Chat</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans h-screen flex flex-col">
+
+<header class="p-6 bg-gray-800 border-b border-blue-500 shadow-xl">
+    <h1 class="text-2xl font-bold text-blue-400">🚀 SyntraCore Live-Support</h1>
+    <p class="text-sm text-gray-400">Status: <span id="status" class="text-red-500">Getrennt</span></p>
+</header>
+
+<main id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-900">
+    <div class="bg-blue-900 p-4 rounded-lg self-start max-w-xl shadow-md border border-blue-700">
+        Hallo! Ich bin SyntraCore. Wie kann ich dir heute helfen?
+    </div>
+</main>
+
+<footer class="p-6 bg-gray-800 border-t border-gray-700">
+    <div class="flex gap-4">
+        <input type="text" id="message" placeholder="Frage eingeben..."
+               class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
+        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">
+            Senden
+        </button>
+    </div>
+</footer>
+
+<script>
+    var stompClient = null;
+
+    function connect() {
+        var socket = new SockJS('/ws-support');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            document.getElementById('status').innerText = "Verbunden";
+            document.getElementById('status').classList.replace('text-red-500', 'text-green-500');
+
+            stompClient.subscribe('/topic/public', function (response) {
+                showGreeting(response.body);
+            });
+        });
+    }
+
+    function sendMessage() {
+        var msg = document.getElementById('message').value;
+        if(msg && stompClient) {
+            appendUserMessage(msg);
+            stompClient.send("/app/chat.sendMessage", {}, msg);
+            document.getElementById('message').value = '';
+        }
+    }
+
+    function appendUserMessage(msg) {
+        var chat = document.getElementById('chat-box');
+        chat.innerHTML += `<div class='bg-gray-700 p-4 rounded-lg self-end max-w-xl ml-auto border border-gray-600 shadow-sm'>${msg}</div>`;
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function showGreeting(message) {
+        var chat = document.getElementById('chat-box');
+        chat.innerHTML += `<div class='bg-blue-900 p-4 rounded-lg self-start max-w-xl border border-blue-700 shadow-md'>${message}</div>`;
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    connect();
+</script>
+</body>
+</html>

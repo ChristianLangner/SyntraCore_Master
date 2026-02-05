@@ -1,4 +1,4 @@
-package com.syntracore.adapters.outbound.database;
+/** package com.syntracore.adapters.outbound.database;
 
 import com.syntracore.core.ports.KnowledgeBasePort;
 import org.springframework.stereotype.Component;
@@ -51,7 +51,8 @@ import java.util.List;
  * 
  * @see com.syntracore.core.ports.KnowledgeBasePort
  * @see com.syntracore.core.services.TicketService
- */
+
+
 @Component
 public class MockKnowledgeAdapter implements KnowledgeBasePort {
 
@@ -101,7 +102,7 @@ public class MockKnowledgeAdapter implements KnowledgeBasePort {
      *         aber kann leer sein (aktuell wird immer mindestens ein Eintrag zurückgegeben).
      * 
      * @throws NullPointerException wenn query null ist
-     */
+
     @Override
     public List<String> findRelevantContext(String query) {
         List<String> mockData = new ArrayList<>();
@@ -123,3 +124,5 @@ public class MockKnowledgeAdapter implements KnowledgeBasePort {
         return mockData;
     }
 }
+
+*/
