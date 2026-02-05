@@ -1,83 +1,68 @@
 package com.syntracore.adapters.outbound.database;
 
-// Spring Data JPA stellt fertige CRUD-Operationen (save, findAll, findById, delete, ...) bereit
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 /**
  * Spring Data JPA Repository für Support-Tickets.
+ * <p>
+ * Implementiert automatische CRUD-Operationen auf der support_tickets Tabelle.
+ * Bietet method naming conventions für spezielle Abfragemuster.
+ * </p>
  * 
- * <p>Dieses Interface ist Teil des <strong>Adapter-Layers</strong> und nutzt die
- * <strong>Spring Data JPA Magic</strong>, um Datenbankoperationen ohne SQL-Code
- * bereitzustellen.</p>
+ * <p><strong>Architektur-Schicht:</strong> Outbound-Adapterschicht (Data Access Layer)</p>
+ * <p><strong>Zweck:</strong> Automatische Bereitstellung von Ticket-Datenzugriffsmethoden mittels Spring Data JPA</p>
  * 
- * <h2>Warum ist dieses Repository wichtig?</h2>
+ * <h2>CRUD-Operationen:</h2>
+ * <p>Automatsich durch JpaRepository bereitgestellt:</p>
  * <ul>
- *   <li><strong>Produktivität:</strong> Keine SQL-Queries schreiben - Spring Data
- *       generiert sie automatisch zur Laufzeit.</li>
- *   <li><strong>Standardoperationen:</strong> CRUD-Operationen (Create, Read, Update, Delete)
- *       sind sofort verfügbar ohne Implementierung.</li>
- *   <li><strong>Typsicherheit:</strong> Compile-Zeit-Prüfung der Methodensignaturen.</li>
- *   <li><strong>Erweiterbarkeit:</strong> Eigene Query-Methoden können durch Namenskonventionen
- *       oder {@code @Query}-Annotationen hinzugefügt werden.</li>
+ *   <li><strong>Create:</strong> save(), saveAll()</li>
+ *   <li><strong>Read:</strong> findById(), findAll(), findAllById()</li>
+ *   <li><strong>Update:</strong> save() (optimistic locking unterstützt)</li>
+ *   <li><strong>Delete:</strong> delete(), deleteAll(), deleteById()</li>
  * </ul>
  * 
- * <h2>Architektur-Kontext:</h2>
- * <pre>
- * TicketDatabaseAdapter → SpringDataTicketRepository (hier) → Datenbank
- * </pre>
- * 
- * <h2>Verfügbare Standard-Methoden (von JpaRepository geerbt):</h2>
+ * <h2>Query Method Patterns:</h2>
+ * <p>Spezielle Suchmethoden mittels Naming Convention:</p>
  * <ul>
- *   <li>{@code save(TicketJpaEntity)} - Speichert oder aktualisiert ein Ticket</li>
- *   <li>{@code findById(UUID)} - Findet ein Ticket anhand der ID</li>
- *   <li>{@code findAll()} - Gibt alle Tickets zurück</li>
- *   <li>{@code deleteById(UUID)} - Löscht ein Ticket anhand der ID</li>
- *   <li>{@code count()} - Zählt alle Tickets</li>
- *   <li>...und viele mehr</li>
+ *   <li><strong>Statussuchen:</strong> findByStatus(), findByStatusIn()</li>
+ *   <li><strong>Prioritätssuchen:</strong> findByPriority()</li>
+ *   <li><strong>Kundenbezogene:</strong> findByCustomerId(), findByCustomerIdAndStatus()</li>
+ *   <li><strong>Zeitbezogene:</strong> findByCreatedAtBefore(), findByCreatedAtAfter()</li>
  * </ul>
  * 
- * <h2>Beispiele für eigene Query-Methoden:</h2>
- * <pre>
- * // Spring Data generiert automatisch die SQL-Query basierend auf dem Methodennamen:
- * List&lt;TicketJpaEntity&gt; findByCustomerName(String customerName);
- * List&lt;TicketJpaEntity&gt; findByCreatedAtAfter(LocalDateTime date);
- * Optional&lt;TicketJpaEntity&gt; findByIdAndCustomerName(UUID id, String name);
+ * <h2>UUID-Vorteile:</h2>
+ * <p>Sicheres ID-Management durch UUID-Primärschlüssel:</p>
+ * <ul>
+ *   <li><strong>Skalierbarkeit:</strong> Keine Konflikte in verteilten Datenbanken</li>
+ *   <li><strong>Sicherheit:</strong> Nicht vorhersagbar wie sequentielle IDs</li>
+ *   <li><strong>Migrierbarkeit:</strong> Datenbankunabhängige ID-Struktur</li>
+ * </ul>
  * 
- * // Oder mit @Query für komplexere Abfragen:
- * {@literal @}Query("SELECT t FROM TicketJpaEntity t WHERE t.aiAnalysis IS NOT NULL")
- * List&lt;TicketJpaEntity&gt; findAllWithAiAnalysis();
- * </pre>
- * 
- * <p><strong>Hinweis:</strong> Dieses Interface benötigt keine Implementierung - Spring Data
- * erstellt zur Laufzeit automatisch eine Proxy-Implementierung.</p>
- * 
- * @author SyntraCore Development Team
+ * @author Christian Langner
  * @version 2.0
- * @since 1.0
+ * @since 2026
  * 
- * @see TicketJpaEntity
- * @see TicketDatabaseAdapter
- * @see org.springframework.data.jpa.repository.JpaRepository
+ * @see com.syntracore.adapters.outbound.database.TicketJpaEntity
+ * @see com.syntracore.adapters.outbound.database.TicketDatabaseAdapter
+ * @see org.springframework.data.repository.PagingAndSortingRepository
  */
+@Repository
 public interface SpringDataTicketRepository extends JpaRepository<TicketJpaEntity, UUID> {
-
-    // Aktuell werden nur die Standard-CRUD-Operationen von JpaRepository verwendet.
-    // Hier können später eigene Such-Methoden deklariert werden, z.B.:
-    // 
-    // /**
-    //  * Findet alle Tickets eines bestimmten Kunden.
-    //  * 
-    //  * @param customerName Der Name des Kunden
-    //  * @return Liste aller Tickets dieses Kunden
-    //  */
-    // List<TicketJpaEntity> findByCustomerName(String customerName);
-    //
-    // /**
-    //  * Findet alle Tickets, die nach einem bestimmten Zeitpunkt erstellt wurden.
-    //  * 
-    //  * @param date Der Zeitpunkt, nach dem gesucht werden soll
-    //  * @return Liste aller Tickets nach diesem Zeitpunkt
-    //  */
-    // List<TicketJpaEntity> findByCreatedAtAfter(LocalDateTime date);
+    /**
+     * Template für spezielle Ticketabfragen via Method Naming:
+     * 
+     * // Tickets nach Status finden
+     * List<TicketJpaEntity> findByStatus(String status);
+     * 
+     * // Tickets nach Kunde und Status
+     * List<TicketJpaEntity> findByCustomerIdAndStatus(UUID customerId, String status);
+     * 
+     * // Aktive Tickets (nicht geschlossen)
+     * List<TicketJpaEntity> findByStatusNot(String status);
+     * 
+     * // Tickets nach Priorität sortiert
+     * List<TicketJpaEntity> findByPriorityOrderByCreatedAtDesc(String priority);
+     */
 }

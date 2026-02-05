@@ -1,30 +1,40 @@
-// UPDATE #3: Definition des Inbound Ports (Driving Port)
-// Zweck: Abstraktion der Geschäftslogik für Inbound-Adapter (Web, WebSockets, Telegram)
-// Ort: src/main/java/com/syntracore/core/ports/TicketUseCase.java
-
 package com.syntracore.core.ports;
 
 /**
- * Inbound Port für die Ticket-Verarbeitung.
- * * <p>Dieses Interface definiert die Use Cases, die von außen (Adaptern) 
- * aufgerufen werden können. Es entkoppelt die Adapter von der konkreten 
- * Service-Implementierung.</p>
- * * @author SyntraCore Development Team
- * @version 1.0
+ * Inbound Port – Driving Port für die Ticket-Verarbeitung.
+ * <p>
+ * Dieser Port definiert die Geschäftsanforderungen, die von außen
+ * (Inbound-Adaptern wie Web-Controller, WebSocket-Endpunkte) aufgerufen
+ * werden können. Er isoliert die Anwendungslogik von konkreten Framework- 
+ * und Infrastrukturdetails.
+ * </p>
+ * 
+ * @see Inbound-Port gemäß hexagonaler Architektur
+ * @author Christian Langner
+ * @version 2.0
+ * @since 2026
  */
 public interface TicketUseCase {
 
     /**
-     * Erstellt ein neues Support-Ticket und stößt die KI-Analyse an.
-     * @param customerName Name des Absenders
-     * @param message Inhalt der Anfrage
+     * Erstellt ein neues Support-Ticket und initiiert die KI-gestützte Analyse.
+     * Diese Methode folgt dem RAG-Workflow (Retrieval-Augmented Generation).
+     *
+     * @param customerName Name des Absenders (Kunde oder Benutzer)
+     * @param message Inhalt der Support-Anfrage
      */
     void createAndProcessTicket(String customerName, String message);
 
     /**
-     * Verarbeitet eine Live-Anfrage direkt (für den Live-Chat).
+     * Verarbeitet eine Live-Anfrage direkt ohne Ticket-Erstellung.
+     * Wird für den interaktiven Live-Chat verwendet.
+     * <p>
+     * Der Unterschied zur Ticket-Verarbeitung liegt in der
+     * Priorität und Antwortgeschwindigkeit.
+     * </p>
+     *
      * @param userMessage Die Nachricht des Benutzers
-     * @return Die Antwort der KI
+     * @return KI-basierte Antwort in Echtzeit
      */
     String processInquiry(String userMessage);
 }

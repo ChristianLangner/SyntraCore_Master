@@ -3,44 +3,16 @@ package com.syntracore.core.ports;
 import com.syntracore.core.domain.SupportTicket;
 
 /**
- * Port-Schnittstelle für KI-basierte Ticket-Analyse.
- * 
- * <p>Dieses Interface ist ein <strong>Outbound-Port</strong> in der Hexagonalen Architektur
- * und definiert die Anforderungen der Domain-Schicht an KI-Dienste zur automatischen
- * Analyse und Beantwortung von Support-Tickets.</p>
- * 
- * <h2>Warum ist dieser Port wichtig?</h2>
- * <ul>
- *   <li><strong>KI-Integration:</strong> Ermöglicht die Anbindung verschiedener KI-Dienste
- *       (OpenAI, Anthropic, lokale Modelle) ohne Änderung der Domain-Logik.</li>
- *   <li><strong>RAG-Unterstützung:</strong> Unterstützt Retrieval-Augmented Generation (RAG),
- *       indem Kontext aus der Wissensdatenbank an die KI übergeben wird.</li>
- *   <li><strong>Testbarkeit:</strong> Kann im Test durch Mock-Implementierungen ersetzt werden,
- *       um KI-Antworten zu simulieren ohne echte API-Calls.</li>
- *   <li><strong>Kosteneffizienz:</strong> Ermöglicht Wechsel zwischen verschiedenen KI-Anbietern
- *       je nach Kosten und Qualität.</li>
- * </ul>
- * 
- * <h2>Architektur-Kontext:</h2>
- * <pre>
- * Domain Layer (definiert Port) ← Adapter Layer (implementiert Port)
- * 
- * Beispiel:
- * AiServicePort (Interface) ← OpenAiAdapter (Implementierung)
- * </pre>
- * 
- * <h2>RAG-Konzept (Retrieval-Augmented Generation):</h2>
- * <p>Die KI erhält nicht nur die Ticket-Nachricht, sondern auch relevanten Kontext
- * aus der Wissensdatenbank. Dies verbessert die Qualität der Antworten erheblich,
- * da die KI auf firmenspezifisches Wissen zugreifen kann.</p>
- * 
- * @author SyntraCore Development Team
+ * Outbound Port – Driven Port für KI-basierte Ticket-Analyse.
+ * <p>
+ * Definiert die Anforderungen der Domain-Schicht an externe KI-Dienste.
+ * Ermöglicht die Integration verschiedener KI-Anbieter mittels des
+ * Retrieval-Augmented Generation (RAG) Workflows.
+ * </p>
+ * @see Outbound-Port gemäß hexagonaler Architektur
+ * @author Christian Langner
  * @version 2.0
- * @since 2.0
- * 
- * @see com.syntracore.core.domain.SupportTicket
- * @see com.syntracore.core.ports.KnowledgeBasePort
- * @see com.syntracore.adapters.outbound.openai.OpenAiAdapter
+ * @since 2026
  */
 public interface AiServicePort {
     
