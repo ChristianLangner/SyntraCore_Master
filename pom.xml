@@ -52,6 +52,12 @@
         Maven lädt diese automatisch aus dem Maven Central Repository.
     -->
     <dependencies>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!--
             Spring Web Starter:
             - stellt REST-API / Web-Funktionalitäten bereit (Spring MVC)
