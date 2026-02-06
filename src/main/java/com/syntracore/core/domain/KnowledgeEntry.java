@@ -72,7 +72,7 @@ public class KnowledgeEntry {
      * @param content Inhalt des Wissenseintrags
      * ÄNDERUNG: companyId als Pflichtfeld hinzugefügt.
      */
-    public KnowledgeEntry(String category, String content) {
+    public KnowledgeEntry(String category, String content, UUID companyId) {
         this.id = UUID.randomUUID();
         this.category = category;
         this.content = content;

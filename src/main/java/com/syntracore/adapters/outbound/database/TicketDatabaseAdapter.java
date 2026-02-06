@@ -1,4 +1,4 @@
-// TicketDatabaseAdapter für Mandantenfähigkeit und Multi-Profil-Support (home/school) aktualisiert.
+
 package com.syntracore.adapters.outbound.database;
 
 import com.syntracore.core.domain.SupportTicket;

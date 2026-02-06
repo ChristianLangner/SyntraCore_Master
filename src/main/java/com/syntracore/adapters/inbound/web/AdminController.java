@@ -39,6 +39,10 @@ public class AdminController {
      * @param model Spring Model zur Datenübertragung an die View
      * @return Name der Thymeleaf-Template-Datei (admin.html)
      */
+
+    // Wir nutzen die gleiche Test-ID wie im TicketController
+    private static final UUID TEST_COMPANY_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     @GetMapping
     public String adminPage(Model model) {
         model.addAttribute("knowledgeEntries", ticketService.getAllKnowledge());
@@ -56,7 +60,8 @@ public class AdminController {
      */
     @PostMapping("/add-knowledge")
     public String addKnowledge(@RequestParam String category, @RequestParam String content) {
-        ticketService.addKnowledge(new KnowledgeEntry(category, content));
+        // ÄNDERUNG: Hier wird jetzt die TEST_COMPANY_ID als dritter Parameter übergeben
+        ticketService.addKnowledge(new KnowledgeEntry(category, content, TEST_COMPANY_ID));
         return "redirect:/admin";
     }
 
