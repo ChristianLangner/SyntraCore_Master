@@ -43,6 +43,7 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
 
     @Override
     public Optional<SupportTicket> findById(UUID id) {
+
         return repository.findById(id).map(this::mapToDomain);
     }
 
@@ -51,7 +52,7 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
         ticket.setId(entity.getId());
         ticket.setCreatedAt(entity.getCreatedAt());
         ticket.setAiAnalysis(entity.getAiAnalysis());
-        // ticket.setResolved(entity.isResolved());
+        ticket.setResolved(entity.isResolved());
         return ticket;
     }
 }
