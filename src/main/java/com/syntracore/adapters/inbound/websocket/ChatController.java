@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
+import java.util.UUID;
 
 /**
  * Inbound-Adapter – WebSocket-Controller für Echtzeit-KI-Chat.
@@ -30,6 +31,9 @@ public class ChatController {
      */
     private final TicketUseCase ticketUseCase;
 
+    // Wir definieren eine feste Test-ID, bis wir ein Login-System haben
+    private static final UUID TEST_COMPANY_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+
     /**
      * Verarbeitet eingehende WebSocket-Nachrichten über STOMP-Protokoll.
      * Implementiert den Live-Chat-Workflow mit vollständigem RAG-Prozess.
@@ -40,8 +44,7 @@ public class ChatController {
     @MessageMapping("/chat.sendMessage")
     @SendTo("/topic/public")
     public String handleChatMessage(String message) {
-        System.out.println("💬 WebSocket-Nachricht empfangen: " + message);
-
-        return ticketUseCase.processInquiry(message);
+        // ÄNDERUNG: TEST_COMPANY_ID wird jetzt mitgegeben
+        return ticketUseCase.processInquiry(message, TEST_COMPANY_ID);
     }
 }

@@ -32,4 +32,7 @@ public class TicketJpaEntity {
 
     // Optional: Falls du den Status "gelöst" in der DB speichern willst
     private boolean resolved;
+
+    // NEU: Hier fehlte die Variable, weshalb setCompanyId/getCompanyId nicht funktionierten
+    private UUID companyId;
 }

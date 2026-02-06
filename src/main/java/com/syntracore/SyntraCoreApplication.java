@@ -5,6 +5,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import java.util.UUID;
 
 /**
  * Hauptklasse und Einstiegspunkt der SyntraCore Spring-Boot-Anwendung.
@@ -87,81 +88,20 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 public class SyntraCoreApplication {
 
-    /**
-     * Main-Methode: Einstiegspunkt der Java-Anwendung.
-     * 
-     * <p>Diese Methode wird von der JVM beim Start aufgerufen und bootstrapped
-     * die gesamte Spring-Boot-Anwendung.</p>
-     * 
-     * <h3>Was passiert hier?</h3>
-     * <ol>
-     *   <li>Spring-Container wird initialisiert</li>
-     *   <li>Auto-Configuration wird durchgeführt</li>
-     *   <li>Component Scanning findet alle Beans</li>
-     *   <li>Embedded Web-Server wird gestartet</li>
-     *   <li>CommandLineRunner werden ausgeführt (Herzschlag-Test)</li>
-     * </ol>
-     * 
-     * <p><strong>Verwendung:</strong></p>
-     * <pre>
-     * // In IDE: Rechtsklick → Run 'SyntraCoreApplication'
-     * // Oder per Maven:
-     * mvn spring-boot:run
-     * 
-     * // Oder als JAR:
-     * java -jar syntracore.jar
-     * </pre>
-     * 
-     * @param args Kommandozeilen-Argumente (werden an Spring weitergegeben)
-     *             Beispiel: {@code --server.port=9090} ändert den Port
-     */
     public static void main(String[] args) {
         SpringApplication.run(SyntraCoreApplication.class, args);
     }
 
-    /**
-     * Herzschlag-Test: Automatischer End-to-End-Test beim Anwendungsstart.
-     * 
-     * <p>Diese Methode definiert einen {@link CommandLineRunner}, der direkt nach
-     * dem erfolgreichen Start der Anwendung ausgeführt wird. Er testet den kompletten
-     * RAG-Workflow von Ticket-Erstellung bis Datenbank-Persistierung.</p>
-     * 
-     * <h3>Was wird getestet?</h3>
-     * <ol>
-     *   <li><strong>Service-Layer:</strong> {@link TicketService} ist korrekt verdrahtet</li>
-     *   <li><strong>Domain-Layer:</strong> {@link com.syntracore.core.domain.SupportTicket} funktioniert</li>
-     *   <li><strong>RAG-Workflow:</strong> Wissensdatenbank-Zugriff funktioniert</li>
-     *   <li><strong>KI-Integration:</strong> OpenAI-Adapter kann KI-Antworten generieren</li>
-     *   <li><strong>Datenbank:</strong> JPA-Persistierung funktioniert</li>
-     * </ol>
-     * 
-     * <h3>Erwartete Konsolen-Ausgabe:</h3>
-     * <pre>
-     * 💓 SyntraCore Herzschlag-Test Phase 2 startet...
-     * 🔍 Suche passendes Wissen für: Test: Funktioniert die KI-Kette?
-     * 💾 Ticket erfolgreich in der DB gespeichert: [UUID]
-     * 🚀 Service: Ticket verarbeitet (RAG aktiv).
-     * ✅ Herzschlag-Test erfolgreich!
-     * </pre>
-     * 
-     * <p><strong>Hinweis:</strong> Wenn dieser Test fehlschlägt, ist die Anwendung
-     * nicht korrekt konfiguriert (z.B. fehlender API-Key, Datenbank-Problem).</p>
-     * 
-     * <p><strong>Best Practice:</strong> In Produktionsumgebungen sollte dieser Test
-     * durch ein Profil deaktivierbar sein (z.B. {@code @Profile("!prod")}).</p>
-     * 
-     * @param ticketService Der {@link TicketService}, der von Spring injiziert wird
-     * 
-     * @return Ein {@link CommandLineRunner}, der den Test ausführt
-     */
     @Bean
     public CommandLineRunner heartbeatTest(TicketService ticketService) {
         return args -> {
-            System.out.println("💓 SyntraCore Herzschlag-Test Phase 2 startet...");
+            System.out.println("💓 SyntraCore Herzschlag-Test startet...");
 
-            // End-to-End-Test: Vollständiger Durchlauf durch alle Schichten
-            // Domain → Service → Ports → Adapter (KI + DB)
-            ticketService.createAndProcessTicket("Junior Developer", "Test: Funktioniert die KI-Kette?");
+            // NEU: Wir generieren eine Test-ID für den Start-Test
+            UUID testId = UUID.randomUUID();
+
+            // ÄNDERUNG: Die testId wird jetzt als dritter Parameter übergeben
+            ticketService.createAndProcessTicket("Junior Developer", "Test: Funktioniert die KI-Kette?", testId);
 
             System.out.println("✅ Herzschlag-Test erfolgreich!");
         };
