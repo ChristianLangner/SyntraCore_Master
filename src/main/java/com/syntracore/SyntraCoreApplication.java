@@ -1,10 +1,12 @@
 package com.syntracore;
 
 import com.syntracore.core.services.TicketService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+
 import java.util.UUID;
 
 /**
@@ -93,14 +95,19 @@ public class SyntraCoreApplication {
     }
 
     @Bean
-    public CommandLineRunner heartbeatTest(TicketService ticketService) {
+    public CommandLineRunner heartbeatTest(
+            TicketService ticketService,
+            @Value("${syntracore.heartbeat.enabled:false}") boolean heartbeatEnabled
+    ) {
         return args -> {
+            if (!heartbeatEnabled) {
+                System.out.println("💓 SyntraCore Herzschlag-Test: deaktiviert (syntracore.heartbeat.enabled=false)");
+                return;
+            }
+
             System.out.println("💓 SyntraCore Herzschlag-Test startet...");
 
-            // NEU: Wir generieren eine Test-ID für den Start-Test
             UUID testId = UUID.randomUUID();
-
-            // ÄNDERUNG: Die testId wird jetzt als dritter Parameter übergeben
             ticketService.createAndProcessTicket("Junior Developer", "Test: Funktioniert die KI-Kette?", testId);
 
             System.out.println("✅ Herzschlag-Test erfolgreich!");

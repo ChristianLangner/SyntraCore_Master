@@ -65,13 +65,13 @@ public class AdminController {
         return "redirect:/admin";
     }
 
-    /**
-     * Markiert ein Support-Ticket als gelöst.
-     * Verwendet UUID-Primärschlüssel für referenzielle Integrität.
-     *
-     * @param ticketId UUID-String des zu lösenden Tickets
-     * @return Redirect zur Admin-Seite zur Aktualisierung der Ticketliste
-     */
+    @PostMapping("/update-persona")
+    public String updatePersona(@RequestParam("prompt") String prompt,
+                                @RequestParam("style") String style) {
+        ticketService.updatePersona(TEST_COMPANY_ID, prompt, style);
+        return "redirect:/admin";
+    }
+
     @PostMapping("/resolve-ticket")
     public String resolveTicket(@RequestParam String ticketId) {
         ticketService.resolveTicket(UUID.fromString(ticketId));

@@ -1,13 +1,16 @@
 package com.syntracore.core.services;
 
 import com.syntracore.core.domain.KnowledgeEntry;
+import com.syntracore.core.domain.Persona;
 import com.syntracore.core.domain.SupportTicket;
 import com.syntracore.core.ports.KnowledgeBasePort;
 import com.syntracore.core.ports.AiServicePort;
+import com.syntracore.core.ports.PersonaRepositoryPort;
 import com.syntracore.core.ports.TicketRepositoryPort;
 import com.syntracore.core.ports.TicketUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -66,42 +69,59 @@ public class TicketService implements TicketUseCase {
     private final TicketRepositoryPort ticketRepository;
     private final KnowledgeBasePort knowledgeBase;
     private final AiServicePort aiService;
+    private final PersonaRepositoryPort personaRepository;
 
-    /**
-     * Erstellt und verarbeitet ein Support-Ticket mit mandantenspezifischem RAG-Workflow.
-     * * @param customerName Name des Kunden
-     * @param message Nachricht/Beschreibung des Problems
-     * @param companyId Die ID der Firma, zu der das Ticket gehört
-     */
+    private static final String DEFAULT_SYSTEM_PROMPT = "Du bist ein hilfreicher Support-Assistent.";
+    private static final String DEFAULT_SPEAKING_STYLE = "Freundlich, klar, präzise.";
+
+    public void updatePersona(UUID companyId, String prompt, String style) {
+        Persona persona = personaRepository.findActiveByCompanyId(companyId)
+                .orElseGet(() -> new Persona(companyId, "Default Persona", DEFAULT_SYSTEM_PROMPT, DEFAULT_SPEAKING_STYLE));
+
+        persona.setSystemPrompt(prompt);
+        persona.setSpeakingStyle(style);
+
+        personaRepository.save(persona);
+    }
+
+    private Persona getPersonaForCompany(UUID companyId) {
+        return personaRepository.findActiveByCompanyId(companyId)
+                .orElseGet(() -> new Persona(companyId, "Default Persona", DEFAULT_SYSTEM_PROMPT, DEFAULT_SPEAKING_STYLE));
+    }
+
     @Override
-    public void createAndProcessTicket(String customerName, String message, UUID companyId) {
-        // Ticket wird mit Firmen-ID erstellt
+    public void createAndProcessTicket(String customerName, String message, UUID customerId) {
+        UUID companyId = customerId; // Naming-Fix lokal: Port nutzt "customerId", fachlich ist es CompanyId
         SupportTicket ticket = new SupportTicket(customerName, message, companyId);
 
-        // ÄNDERUNG: Wir geben die companyId nun an den Knowledge-Port weiter,
-        // damit die KI nur Firmen-eigenes Wissen als Kontext erhält.
         List<String> context = knowledgeBase.findRelevantContext(message, companyId);
         String combinedContext = String.join("\n", context);
 
-        // Die KI analysiert das Problem basierend auf dem firmeninternen Kontext
-        String analysis = aiService.generateAnalysis(ticket, combinedContext);
+        Persona persona = getPersonaForCompany(companyId);
+
+        String analysis = aiService.generateAnalysis(
+                ticket,
+                combinedContext,
+                persona.getSystemPrompt(),
+                persona.getSpeakingStyle()
+        );
         ticket.setAiAnalysis(analysis);
 
-        // Das Ticket wird inkl. Firmenzugehörigkeit gespeichert
         ticketRepository.save(ticket);
     }
 
-    /**
-     * Verarbeitet eine Chat-Anfrage mandantenspezifisch.
-     * * @param userMessage Die Benutzeranfrage
-     * @param companyId Die ID der Firma für den Wissens-Kontext
-     * @return KI-generierte Antwort
-     */
     @Override
-    public String processInquiry(String userMessage, UUID companyId) {
-        // ÄNDERUNG: Kontextsuche wird auf die spezifische Firma eingeschränkt
+    public String processInquiry(String userMessage, UUID customerId) {
+        UUID companyId = customerId;
         List<String> context = knowledgeBase.findRelevantContext(userMessage, companyId);
-        return aiService.generateChatResponse(userMessage, String.join("\n", context));
+        Persona persona = getPersonaForCompany(companyId);
+
+        return aiService.generateChatResponse(
+                userMessage,
+                String.join("\n", context),
+                persona.getSystemPrompt(),
+                persona.getSpeakingStyle()
+        );
     }
 
     /**

@@ -85,6 +85,29 @@
             </table>
         </div>
     </section>
+
+<section>
+  <h2>Persona / Bot-Charakter</h2>
+
+  <form method="post" action="/admin/update-persona">
+    <div>
+      <label for="prompt">System Prompt (Identität)</label><br/>
+      <textarea id="prompt" name="prompt" rows="6" cols="80"
+                placeholder="z.B. Du bist der Support-Bot der Firma ..."></textarea>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <label for="style">Speaking Style (Ton & Stil)</label><br/>
+      <input id="style" name="style" type="text" size="80"
+             placeholder="z.B. freundlich, kurz, lösungsorientiert"/>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <button type="submit">Persona aktualisieren</button>
+    </div>
+  </form>
+</section>
+
 </div>
 
 </body>

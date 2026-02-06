@@ -35,28 +35,48 @@ public class OpenAiAdapter implements AiServicePort {
     }
 
     @Override
-    public String generateAnalysis(SupportTicket ticket, String context) {
-        return callOpenRouter("Problem des Kunden: " + ticket.getMessage(), context);
+    public String generateAnalysis(SupportTicket ticket, String context, String systemPrompt, String speakingStyle) {
+        return callOpenRouter("Problem des Kunden: " + ticket.getMessage(), context, systemPrompt, speakingStyle);
     }
 
     @Override
-    public String generateChatResponse(String userPrompt, String context) {
-        return callOpenRouter(userPrompt, context);
+    public String generateChatResponse(String userPrompt, String context, String systemPrompt, String speakingStyle) {
+        return callOpenRouter(userPrompt, context, systemPrompt, speakingStyle);
     }
 
-    private String callOpenRouter(String input, String context) {
+    private boolean isApiKeyMissing() {
+        return apiKey == null || apiKey.isBlank() || "__SET_ME__".equals(apiKey);
+    }
+
+    private String callOpenRouter(String input, String context, String systemPrompt, String speakingStyle) {
         try {
+            if (isApiKeyMissing()) {
+                return "KI ist nicht konfiguriert: Bitte setze OPENROUTER_API_KEY (oder ai.api.key) und starte neu.";
+            }
+
             String promptContext = (context != null && !context.isEmpty()) ? context : "Allgemeiner Support.";
+
+            String effectiveSystemPrompt = (systemPrompt == null || systemPrompt.isBlank())
+                    ? "Du bist ein Support-Experte."
+                    : systemPrompt;
+
+            String effectiveStyle = (speakingStyle == null || speakingStyle.isBlank())
+                    ? "Freundlich, klar, präzise."
+                    : speakingStyle;
 
             var requestBody = Map.of(
                     "model", model,
                     "messages", List.of(
-                            Map.of("role", "system", "content", "Du bist ein Support-Experte. Wissen: " + promptContext),
+                            Map.of(
+                                    "role", "system",
+                                    "content", effectiveSystemPrompt
+                                            + "\n\nSprechstil: " + effectiveStyle
+                                            + "\n\nWissen/Kontext:\n" + promptContext
+                            ),
                             Map.of("role", "user", "content", input)
                     )
             );
 
-            // WICHTIG: Hier muss der Pfad /chat/completions angehängt werden!
             var response = restClient.post()
                     .uri("/chat/completions")
                     .header("Authorization", "Bearer " + apiKey)
@@ -75,7 +95,6 @@ public class OpenAiAdapter implements AiServicePort {
             return "Fehler: KI lieferte eine leere Antwort.";
 
         } catch (Exception e) {
-            // Dies fängt den HttpMessageConverter Fehler ab, wenn HTML statt JSON kommt
             return "Fehler bei der KI-Anfrage: " + e.getMessage();
         }
     }
