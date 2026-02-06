@@ -1,5 +1,7 @@
 package com.syntracore.core.ports;
 
+import java.util.UUID;
+
 /**
  * Inbound Port – Driving Port für die Ticket-Verarbeitung.
  * <p>
@@ -23,7 +25,7 @@ public interface TicketUseCase {
      * @param customerName Name des Absenders (Kunde oder Benutzer)
      * @param message Inhalt der Support-Anfrage
      */
-    void createAndProcessTicket(String customerName, String message);
+    void createAndProcessTicket(String customerName, String message, UUID customerId);
 
     /**
      * Verarbeitet eine Live-Anfrage direkt ohne Ticket-Erstellung.
@@ -36,5 +38,5 @@ public interface TicketUseCase {
      * @param userMessage Die Nachricht des Benutzers
      * @return KI-basierte Antwort in Echtzeit
      */
-    String processInquiry(String userMessage);
+    String processInquiry(String userMessage, UUID customerId);
 }

@@ -68,58 +68,60 @@ public class TicketService implements TicketUseCase {
     private final AiServicePort aiService;
 
     /**
-     * Erstellt und verarbeitet ein Support-Ticket mit vollständigem RAG-Workflow.
-     * Implementiert den kompletten Retrieval-Augmented-Generation Prozess.
-     * 
-     * @param customerName Name des Kunden
+     * Erstellt und verarbeitet ein Support-Ticket mit mandantenspezifischem RAG-Workflow.
+     * * @param customerName Name des Kunden
      * @param message Nachricht/Beschreibung des Problems
-     * @see com.syntracore.core.domain.SupportTicket
+     * @param companyId Die ID der Firma, zu der das Ticket gehört
      */
     @Override
-    public void createAndProcessTicket(String customerName, String message) {
-        SupportTicket ticket = new SupportTicket(customerName, message);
-        List<String> context = knowledgeBase.findRelevantContext(message);
+    public void createAndProcessTicket(String customerName, String message, UUID companyId) {
+        // Ticket wird mit Firmen-ID erstellt
+        SupportTicket ticket = new SupportTicket(customerName, message, companyId);
+
+        // ÄNDERUNG: Wir geben die companyId nun an den Knowledge-Port weiter,
+        // damit die KI nur Firmen-eigenes Wissen als Kontext erhält.
+        List<String> context = knowledgeBase.findRelevantContext(message, companyId);
         String combinedContext = String.join("\n", context);
+
+        // Die KI analysiert das Problem basierend auf dem firmeninternen Kontext
         String analysis = aiService.generateAnalysis(ticket, combinedContext);
         ticket.setAiAnalysis(analysis);
+
+        // Das Ticket wird inkl. Firmenzugehörigkeit gespeichert
         ticketRepository.save(ticket);
     }
 
     /**
-     * Verarbeitet eine Chat-Anfrage mit RAG-Workflow.
-     * 
-     * @param userMessage Die Benutzeranfrage
-     * @return KI-generierte Antwort basierend auf relevantem Kontext
+     * Verarbeitet eine Chat-Anfrage mandantenspezifisch.
+     * * @param userMessage Die Benutzeranfrage
+     * @param companyId Die ID der Firma für den Wissens-Kontext
+     * @return KI-generierte Antwort
      */
     @Override
-    public String processInquiry(String userMessage) {
-        List<String> context = knowledgeBase.findRelevantContext(userMessage);
+    public String processInquiry(String userMessage, UUID companyId) {
+        // ÄNDERUNG: Kontextsuche wird auf die spezifische Firma eingeschränkt
+        List<String> context = knowledgeBase.findRelevantContext(userMessage, companyId);
         return aiService.generateChatResponse(userMessage, String.join("\n", context));
     }
 
     /**
-     * Ruft alle vorhandenen Support-Tickets ab.
-     * 
-     * @return Liste aller Support-Tickets
+     * Ruft Tickets ab.
+     * HINWEIS: In einem professionellen System sollte hier nur nach Company gefiltert werden.
      */
     public List<SupportTicket> getAllTickets() {
         return ticketRepository.findAll();
     }
 
     /**
-     * Fügt einen neuen Wissenseintrag zur Knowledge-Base hinzu.
-     * 
-     * @param entry Der Wissenseintrag
-     * @return Der gespeicherte Wissenseintrag
+     * Fügt einen neuen Wissenseintrag hinzu.
+     * Das Domain-Objekt 'entry' enthält bereits die companyId.
      */
     public KnowledgeEntry addKnowledge(KnowledgeEntry entry) {
         return knowledgeBase.save(entry);
     }
 
     /**
-     * Ruft alle Wissenseinträge aus der Knowledge-Base ab.
-     * 
-     * @return Liste aller Wissenseinträge
+     * Ruft alle Wissenseinträge ab.
      */
     public List<KnowledgeEntry> getAllKnowledge() {
         return knowledgeBase.findAll();
@@ -127,8 +129,6 @@ public class TicketService implements TicketUseCase {
 
     /**
      * Markiert ein Ticket als gelöst.
-     * 
-     * @param ticketId Die UUID des zu lösenden Tickets
      */
     public void resolveTicket(UUID ticketId) {
         ticketRepository.findById(ticketId).ifPresent(ticket -> {

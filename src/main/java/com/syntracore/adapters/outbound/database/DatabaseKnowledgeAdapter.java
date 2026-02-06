@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
-
 /**
  * Outbound-Adapter – Persistiert Wissenseinträge in relationaler Datenbank.
  * <p>
@@ -34,59 +34,57 @@ import java.util.stream.Collectors;
  * @see com.syntracore.adapters.outbound.database.VectorKnowledgeAdapter
  */
 @Component
-@Profile("school")
+// Wir lassen den Adapter für beide Profile aktiv (school für H2, home für Supabase)
+@Profile({"school", "home"})
 @RequiredArgsConstructor
 public class DatabaseKnowledgeAdapter implements KnowledgeBasePort {
 
-    /**
-     * Spring Data Repository für JPA-Operationen.
-     * Gewährleistet lose Kopplung zwischen Adapter und JPA-Implementation.
-     */
     private final SpringDataKnowledgeRepository repository;
 
     /**
-     * Sucht Wissenseinträge nach Inhalt und Kategorie.
-     * Implementiert einfache String-Matching-Logik für semantische Suche.
-     *
-     * @param query Suchbegriff für Inhalte und Kategorien
-     * @return Liste von Treffern als Strings
+     * Filtert Wissen nun strikt nach der übergebenen companyId.
      */
     @Override
-    public List<String> findRelevantContext(String query) {
-        List<String> results = repository.findAll().stream()
+    public List<String> findRelevantContext(String query, UUID companyId) {
+        return repository.findAll().stream()
+                // ÄNDERUNG: Strikte Filterung nach Mandant
+                .filter(entity -> entity.getCompanyId() != null && entity.getCompanyId().equals(companyId))
                 .filter(entity -> entity.getContent().toLowerCase().contains(query.toLowerCase())
                         || entity.getCategory().toLowerCase().contains(query.toLowerCase()))
                 .map(KnowledgeJpaEntity::getContent)
                 .collect(Collectors.toList());
-        System.out.println("🔍 Wissensbasis-Suche: " + query + " -> Ergebnisse: " + results.size());
-        return results;
     }
 
-    /**
-     * Speichert einen neuen Wissenseintrag in der Datenbank.
-     * Übersetzt Domain-Modell zu JPA-Entity und persistiert.
-     *
-     * @param entry Domain-Modell des Wissenseintrags mittels UUID
-     * @return Persistierter Wissenseintrag als Domain-Modell
-     */
     @Override
     public KnowledgeEntry save(KnowledgeEntry entry) {
-        KnowledgeJpaEntity jpaEntity = new KnowledgeJpaEntity(entry.getId(), entry.getContent(), entry.getCategory(), entry.getSource());
+        // Mapping inkl. companyId
+        KnowledgeJpaEntity jpaEntity = new KnowledgeJpaEntity(
+                entry.getId(),
+                entry.getContent(),
+                entry.getCategory(),
+                entry.getSource(),
+                entry.getCompanyId() // NEU: Mandant mitgeben
+        );
         KnowledgeJpaEntity savedEntity = repository.save(jpaEntity);
-        System.out.println("💾 Wissenseintrag gespeichert: " + savedEntity.getId());
-        return new KnowledgeEntry(savedEntity.getId(), savedEntity.getContent(), savedEntity.getSource(), savedEntity.getCategory());
+        return new KnowledgeEntry(
+                savedEntity.getId(),
+                savedEntity.getContent(),
+                savedEntity.getSource(),
+                savedEntity.getCategory(),
+                savedEntity.getCompanyId()
+        );
     }
 
-    /**
-     * Liest alle Wissenseinträge aus der Datenbank.
-     * Übersetzt JPA-Entities zurück zu Domain-Modellen.
-     *
-     * @return Liste aller Wissenseinträge als Domain-Modelle
-     */
     @Override
     public List<KnowledgeEntry> findAll() {
         return repository.findAll().stream()
-                .map(entity -> new KnowledgeEntry(entity.getId(), entity.getContent(), entity.getSource(), entity.getCategory()))
+                .map(entity -> new KnowledgeEntry(
+                        entity.getId(),
+                        entity.getContent(),
+                        entity.getSource(),
+                        entity.getCategory(),
+                        entity.getCompanyId()
+                ))
                 .collect(Collectors.toList());
     }
 }

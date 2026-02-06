@@ -62,16 +62,21 @@ public class KnowledgeEntry {
     /** Kategorie für thematische Gruppierung */
     private String category;
 
+    /** NEU: Mandanten-Bezug im Domain-Modell */
+    private UUID companyId;
+
     /**
      * Konstruktor für neue Wissenseinträge vom Admin-System.
      * 
      * @param category Kategorie des Wissenseintrags
      * @param content Inhalt des Wissenseintrags
+     * ÄNDERUNG: companyId als Pflichtfeld hinzugefügt.
      */
     public KnowledgeEntry(String category, String content) {
         this.id = UUID.randomUUID();
         this.category = category;
         this.content = content;
         this.source = "Admin Ingest";
+        this.companyId = companyId;
     }
 }

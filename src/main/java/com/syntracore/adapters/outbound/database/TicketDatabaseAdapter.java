@@ -1,11 +1,10 @@
-// UPDATE #34: Vollständiger TicketDatabaseAdapter (UUID-Support)
-// Ort: src/main/java/com/syntracore/adapters/outbound/database/TicketDatabaseAdapter.java
-
+// TicketDatabaseAdapter für Mandantenfähigkeit und Multi-Profil-Support (home/school) aktualisiert.
 package com.syntracore.adapters.outbound.database;
 
 import com.syntracore.core.domain.SupportTicket;
 import com.syntracore.core.ports.TicketRepositoryPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,6 +14,7 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
+@Profile({"school", "home"}) // Aktiv für lokale H2 und Cloud-Supabase
 public class TicketDatabaseAdapter implements TicketRepositoryPort {
 
     private final SpringDataTicketRepository repository;
@@ -27,11 +27,11 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
         entity.setMessage(ticket.getMessage());
         entity.setCreatedAt(ticket.getCreatedAt());
         entity.setAiAnalysis(ticket.getAiAnalysis());
-        // Falls resolved im Domain-Modell ist, hier auch mappen:
-        // entity.setResolved(ticket.isResolved());
+        entity.setResolved(ticket.isResolved());
+        // NEU: Mandanten-ID beim Speichern setzen
+        entity.setCompanyId(ticket.getCompanyId());
 
         repository.save(entity);
-        System.out.println("💾 Ticket persistent gespeichert: " + ticket.getId());
     }
 
     @Override
@@ -43,12 +43,16 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
 
     @Override
     public Optional<SupportTicket> findById(UUID id) {
-
         return repository.findById(id).map(this::mapToDomain);
     }
 
     private SupportTicket mapToDomain(TicketJpaEntity entity) {
-        SupportTicket ticket = new SupportTicket(entity.getCustomerName(), entity.getMessage());
+        // ÄNDERUNG: Konstruktor-Aufruf im Mapping anpassen
+        SupportTicket ticket = new SupportTicket(
+                entity.getCustomerName(),
+                entity.getMessage(),
+                entity.getCompanyId()
+        );
         ticket.setId(entity.getId());
         ticket.setCreatedAt(entity.getCreatedAt());
         ticket.setAiAnalysis(entity.getAiAnalysis());

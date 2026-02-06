@@ -2,6 +2,7 @@ package com.syntracore.core.ports;
 
 import com.syntracore.core.domain.KnowledgeEntry;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Outbound Port – Driven Port für die Wissensdatenbank-Integration.
@@ -25,7 +26,7 @@ public interface KnowledgeBasePort {
      * @param query Suchbegriff oder Anfrage zur Kontext-Extraktion
      * @return Liste der relevanten Kontextausschnitte, maximal 3 Elemente
      */
-    List<String> findRelevantContext(String query);
+    List<String> findRelevantContext(String query, UUID customerId);
 
     /**
      * Persistiert einen neuen Wissenseintrag in der Datenbank.
