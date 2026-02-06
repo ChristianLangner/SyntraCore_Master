@@ -59,17 +59,22 @@ public class SupportTicket {
     /** Status ob das Ticket gelöst wurde */
     private boolean resolved;
 
+    /** Mandanten-Bezug: ID der zugehörigen Firma */
+    private UUID companyId;
+
     /**
      * Konstruktor für ein neues Support-Ticket.
      * 
      * @param customerName Name des Kunden
      * @param message Beschreibung des Problems
+     * @param companyId UUID der zugehörigen Firma
      */
-    public SupportTicket(String customerName, String message) {
+    public SupportTicket(String customerName, String message, UUID companyId) {
         this.id = UUID.randomUUID();
         this.customerName = customerName;
         this.message = message;
         this.createdAt = LocalDateTime.now();
         this.resolved = false;
+        this.companyId = companyId;
     }
 }
