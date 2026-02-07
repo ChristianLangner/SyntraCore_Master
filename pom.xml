@@ -1,25 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-    Maven-Projektbeschreibung (POM = Project Object Model)
-    Hier wird konfiguriert:
-    - wie das Projekt heißt
-    - welche Java-Version verwendet wird
-    - welche Abhängigkeiten (Spring Boot, Datenbank, Tests, ...) eingebunden werden
-    - wie das Projekt gebaut und gestartet wird
--->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-    <!-- POM-Modellversion (standardmäßig 4.0.0) -->
     <modelVersion>4.0.0</modelVersion>
 
-    <!--
-        Spring Boot Parent-POM:
-        - liefert sinnvolle Standard-Konfigurationen
-        - definiert Versionen vieler Abhängigkeiten
-        - vereinfacht das Build-Setup für Spring-Boot-Projekte
-    -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -27,82 +12,57 @@
         <relativePath/>
     </parent>
 
-    <!--
-        Basisinformationen zum Projekt:
-        - groupId: eindeutiger Namespace (meist umgekehrter Domain-Name)
-        - artifactId: Name des erzeugten Artefakts (z.B. JAR-Datei)
-        - version: Version des Projekts (SNAPSHOT = noch in Entwicklung)
-    -->
     <groupId>com.syntracore</groupId>
     <artifactId>syntracore</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>SyntraCore</name>
 
-    <!-- Globale Projekteigenschaften -->
     <properties>
-        <!-- Java-Version, mit der kompiliert wird (hier Java 21) -->
         <java.version>21</java.version>
-        <!-- Lombok-Version explizit setzen fuer Java 21 Kompatibilitaet -->
         <lombok.version>1.18.32</lombok.version>
     </properties>
 
-    <!--
-        Projekt-Abhängigkeiten:
-        Hier definierst du, welche Bibliotheken dein Projekt benötigt.
-        Maven lädt diese automatisch aus dem Maven Central Repository.
-    -->
     <dependencies>
-
+        <!-- Observability / ops -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
         </dependency>
 
-        <!--
-            Spring Web Starter:
-            - stellt REST-API / Web-Funktionalitäten bereit (Spring MVC)
-            - bringt eingebetteten Webserver (z.B. Tomcat) mit
-        -->
+        <!-- Web / UI -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
-        <!--
-            Spring Data JPA Starter:
-            - vereinfacht den Zugriff auf relationale Datenbanken mit JPA/Hibernate
-            - arbeitet mit Entitäten wie `TicketJpaEntity`
-        -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
-
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-thymeleaf</artifactId>
         </dependency>
 
-        <!--
-            PostgreSQL JDBC-Treiber:
-            - ermöglicht die Verbindung zu einer PostgreSQL-Datenbank
-            - scope=runtime: wird nur zur Laufzeit benötigt, nicht zum Kompilieren
-        -->
+        <!-- Persistence (JPA/Hibernate) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Runtime DB drivers (select via profiles/config) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <version>42.7.2</version>
+            <scope>runtime</scope>
+        </dependency>
 
-        <!--
-            Lombok:
-            - generiert automatisch Boilerplate-Code (Getter, Setter, Konstruktoren, ...)
-            - optional=true: zur Laufzeit nicht zwingend erforderlich, v.a. für Build/IDE
-        -->
+        <!-- Tooling -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
@@ -110,21 +70,7 @@
             <optional>true</optional>
         </dependency>
 
-        <dependency>
-            <groupId>org.postgresql</groupId>
-            <artifactId>postgresql</artifactId>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jdbc</artifactId>
-        </dependency>
-        <!--
-            Spring Boot Test Starter:
-            - bringt JUnit, AssertJ, Spring Test, usw.
-            - scope=test: wird nur beim Testen verwendet, nicht im Produktivbetrieb
-        -->
+        <!-- Tests -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -132,14 +78,8 @@
         </dependency>
     </dependencies>
 
-    <!-- Build-Konfiguration -->
     <build>
         <plugins>
-            <!--
-                Spring Boot Maven Plugin:
-                -ermoeglicht `mvn spring-boot:run` zum Starten der Anwendung
-                -kann eine ausfuehrbare JAR-Datei mit eingebettetem Server bauen
-            -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -153,7 +93,6 @@
                 </configuration>
             </plugin>
 
-            <!-- Lombok Annotation Processor Konfiguration -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
