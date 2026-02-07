@@ -1,5 +1,7 @@
 package com.syntracore.core.services;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.syntracore.core.domain.KnowledgeEntry;
 import com.syntracore.core.domain.Persona;
 import com.syntracore.core.domain.SupportTicket;
@@ -11,56 +13,16 @@ import com.syntracore.core.ports.TicketUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
+// ... existing code ...
+
 /**
- * Service-Klasse für die Verarbeitung von Support-Tickets mit RAG-Workflow.
- * Implementiert den Use-Case für Ticket-Verarbeitung gemäß hexagonaler Architektur.
- * 
- * <p><strong>Architektur-Schicht:</strong> Use-Case/Service-Layer (Inbound-Port)</p>
- * <p><strong>Zweck:</strong> Koordiniert den kompletten RAG-Workflow (Retrieval-Augmented Generation)
- * für Support-Tickets und Chat-Anfragen. Nutzt Ports für externe Abhängigkeiten gemäß
- * hexagonaler Architekturprinzipien.</p>
- * 
- * <h2>RAG-Workflow Technische Implementierung:</h2>
- * <p><strong>Phase 1: Retrieval</strong></p>
- * <ul>
- *   <li><strong>Semantische Suche:</strong> Vector-Embeddings für Relevance-Suche</li>
- *   <li><strong>Knowledge-Base:</strong> Zugriff auf strukturierte Wissensdatenbank</li>
- *   <li><strong>Kontext-Extraktion:</strong> Identifiziert maximal relevante Einträge</li>
- * </ul>
- * 
- * <p><strong>Phase 2: Augmentation</strong></p>
- * <ul>
- *   <li><strong>Datenanreicherung:</strong> Kombiniert Ticket-Problem mit Fachkontext</li>
- *   <li><strong>Prompt-Engineering:</strong> Strukturierte Eingabe für KI-Modelle</li>
- *   <li><strong>Kontext-Priorisierung:</strong> Sortiert Informationen nach Relevanz</li>
- * </ul>
- * 
- * <p><strong>Phase 3: Generation</strong></p>
- * <ul>
- *   <li><strong>LLM-Integration:</strong> OpenAI GPT-Modelle für Analyse</li>
- *   <li><strong>Chain-of-Thought:</strong> Schrittweise Problemanalyse</li>
- *   <li><strong>Structured Output:</strong> Konsistente Antwort-Formate</li>
- * </ul>
- * 
- * <h2>UUID als Primärschlüssel:</h2>
- * <p>Verwendung von UUIDs bietet folgende Vorteile:</p>
- * <ul>
- *   <li><strong>Cloud-Kompatibilität:</strong> Keine Sequenz-Konflikte in verteilten Systemen</li>
- *   <li><strong>Sicherheit:</strong> Nicht vorhersagbar wie sequentielle IDs</li>
- *   <li><strong>Unabhängigkeit:</strong> Generierung ohne Datenbank-Zugriff möglich</li>
- *   <li><strong>Skalierbarkeit:</strong> Ideal für Microservices-Architekturen</li>
- * </ul>
- * 
- * @author Christian Langner
- * @version 2.0
- * @since 2026
- * 
- * @see com.syntracore.core.ports.TicketUseCase
- * @see com.syntracore.core.domain.SupportTicket
- * @see com.syntracore.core.domain.KnowledgeEntry
+ * // UPDATE #58
+ * Persona now supports flexible JSON traits + prompt template + example dialog.
  */
 @Service
 @RequiredArgsConstructor
@@ -71,27 +33,119 @@ public class TicketService implements TicketUseCase {
     private final AiServicePort aiService;
     private final PersonaRepositoryPort personaRepository;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     private static final String DEFAULT_SYSTEM_PROMPT = "Du bist ein hilfreicher Support-Assistent.";
     private static final String DEFAULT_SPEAKING_STYLE = "Freundlich, klar, präzise.";
 
-    public void updatePersona(UUID companyId, String prompt, String style) {
+    /**
+     * Admin: alle Knowledge-Einträge anzeigen.
+     */
+    public List<KnowledgeEntry> getAllKnowledge() {
+        return knowledgeBase.findAll();
+    }
+
+    /**
+     * Admin: Knowledge-Eintrag hinzufügen.
+     */
+    public KnowledgeEntry addKnowledge(KnowledgeEntry entry) {
+        return knowledgeBase.save(entry);
+    }
+
+    /**
+     * Admin: offene Tickets anzeigen (resolved=false).
+     */
+    public List<SupportTicket> getAllTickets() {
+        return ticketRepository.findAll()
+                .stream()
+                .filter(t -> !t.isResolved())
+                .toList();
+    }
+
+    /**
+     * Admin/WebSocket: Ticket als erledigt markieren.
+     */
+    public void resolveTicket(UUID ticketId) {
+        SupportTicket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new IllegalArgumentException("Ticket not found: " + ticketId));
+
+        if (!ticket.isResolved()) {
+            ticket.setResolved(true);
+            ticketRepository.save(ticket);
+        }
+    }
+
+    public void updatePersona(UUID companyId,
+                              String name,
+                              String prompt,
+                              String style,
+                              String traitsJson,
+                              String promptTemplate,
+                              String exampleDialog) {
+
         Persona persona = personaRepository.findActiveByCompanyId(companyId)
                 .orElseGet(() -> new Persona(companyId, "Default Persona", DEFAULT_SYSTEM_PROMPT, DEFAULT_SPEAKING_STYLE));
 
+        if (name != null && !name.isBlank()) {
+            persona.setName(name);
+        }
         persona.setSystemPrompt(prompt);
         persona.setSpeakingStyle(style);
+
+        // traits JSON -> Map<String, String>
+        persona.setTraits(parseTraitsJson(traitsJson));
+
+        if (promptTemplate != null && !promptTemplate.isBlank()) {
+            persona.setPromptTemplate(promptTemplate);
+        } else if (persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank()) {
+            persona.setPromptTemplate(Persona.defaultTemplate());
+        }
+
+        if (exampleDialog != null && !exampleDialog.isBlank()) {
+            persona.setExampleDialog(exampleDialog);
+        } else {
+            persona.setExampleDialog(null);
+        }
 
         personaRepository.save(persona);
     }
 
+    public Persona getCurrentPersona(UUID companyId) {
+        return getPersonaForCompany(companyId);
+    }
+
+    private Map<String, String> parseTraitsJson(String traitsJson) {
+        if (traitsJson == null || traitsJson.isBlank()) {
+            return new LinkedHashMap<>();
+        }
+        try {
+            Map<String, Object> raw = objectMapper.readValue(traitsJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, String> result = new LinkedHashMap<>();
+            raw.forEach((k, v) -> result.put(k, v == null ? "" : String.valueOf(v)));
+            return result;
+        } catch (Exception e) {
+            Map<String, String> fallback = new LinkedHashMap<>();
+            fallback.put("traitsJsonError", "Invalid JSON: " + e.getMessage());
+            return fallback;
+        }
+    }
+
     private Persona getPersonaForCompany(UUID companyId) {
-        return personaRepository.findActiveByCompanyId(companyId)
+        Persona persona = personaRepository.findActiveByCompanyId(companyId)
                 .orElseGet(() -> new Persona(companyId, "Default Persona", DEFAULT_SYSTEM_PROMPT, DEFAULT_SPEAKING_STYLE));
+
+        if (persona.getTraits() == null) {
+            persona.setTraits(new LinkedHashMap<>());
+        }
+        if (persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank()) {
+            persona.setPromptTemplate(Persona.defaultTemplate());
+        }
+        return persona;
     }
 
     @Override
     public void createAndProcessTicket(String customerName, String message, UUID customerId) {
-        UUID companyId = customerId; // Naming-Fix lokal: Port nutzt "customerId", fachlich ist es CompanyId
+        UUID companyId = customerId;
         SupportTicket ticket = new SupportTicket(customerName, message, companyId);
 
         List<String> context = knowledgeBase.findRelevantContext(message, companyId);
@@ -99,12 +153,7 @@ public class TicketService implements TicketUseCase {
 
         Persona persona = getPersonaForCompany(companyId);
 
-        String analysis = aiService.generateAnalysis(
-                ticket,
-                combinedContext,
-                persona.getSystemPrompt(),
-                persona.getSpeakingStyle()
-        );
+        String analysis = aiService.generateAnalysis(ticket, combinedContext, persona);
         ticket.setAiAnalysis(analysis);
 
         ticketRepository.save(ticket);
@@ -114,46 +163,11 @@ public class TicketService implements TicketUseCase {
     public String processInquiry(String userMessage, UUID customerId) {
         UUID companyId = customerId;
         List<String> context = knowledgeBase.findRelevantContext(userMessage, companyId);
+
         Persona persona = getPersonaForCompany(companyId);
 
-        return aiService.generateChatResponse(
-                userMessage,
-                String.join("\n", context),
-                persona.getSystemPrompt(),
-                persona.getSpeakingStyle()
-        );
+        return aiService.generateChatResponse(userMessage, String.join("\n", context), persona);
     }
 
-    /**
-     * Ruft Tickets ab.
-     * HINWEIS: In einem professionellen System sollte hier nur nach Company gefiltert werden.
-     */
-    public List<SupportTicket> getAllTickets() {
-        return ticketRepository.findAll();
-    }
-
-    /**
-     * Fügt einen neuen Wissenseintrag hinzu.
-     * Das Domain-Objekt 'entry' enthält bereits die companyId.
-     */
-    public KnowledgeEntry addKnowledge(KnowledgeEntry entry) {
-        return knowledgeBase.save(entry);
-    }
-
-    /**
-     * Ruft alle Wissenseinträge ab.
-     */
-    public List<KnowledgeEntry> getAllKnowledge() {
-        return knowledgeBase.findAll();
-    }
-
-    /**
-     * Markiert ein Ticket als gelöst.
-     */
-    public void resolveTicket(UUID ticketId) {
-        ticketRepository.findById(ticketId).ifPresent(ticket -> {
-            ticket.setResolved(true);
-            ticketRepository.save(ticket);
-        });
-    }
+    // ... existing code ...
 }

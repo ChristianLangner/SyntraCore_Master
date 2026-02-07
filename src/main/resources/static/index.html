@@ -9,63 +9,139 @@
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col">
 
-<header class="p-6 bg-gray-800 border-b border-blue-500 shadow-xl">
-    <h1 class="text-2xl font-bold text-blue-400">🚀 SyntraCore Live-Support</h1>
-    <p class="text-sm text-gray-400">Status: <span id="status" class="text-red-500">Getrennt</span></p>
+<header class="p-6 bg-gray-800 border-b border-gray-700 shadow-xl">
+    <div class="max-w-6xl mx-auto flex items-center justify-between gap-6">
+        <div>
+            <h1 class="text-2xl font-bold text-blue-400">SyntraCore Live-Support</h1>
+            <p class="text-sm text-gray-400">
+                Status: <span id="status" class="text-red-500">Getrennt</span>
+                <span class="mx-2 text-gray-600">•</span>
+                <a href="/admin" class="text-blue-300 hover:text-blue-200 underline">Admin</a>
+            </p>
+        </div>
+
+        <!-- Persona Preview -->
+        <div class="flex items-center gap-3 bg-gray-900 border border-gray-700 rounded-xl px-3 py-2">
+            <img id="personaAvatar" src="/static/personas/default.png"
+                 class="w-10 h-10 rounded-full object-cover border border-gray-700" alt="Persona Avatar">
+            <div class="leading-tight">
+                <div id="personaName" class="font-semibold text-gray-100 text-sm">Default Persona</div>
+                <div id="personaStyle" class="text-xs text-gray-400">Freundlich, klar, präzise.</div>
+            </div>
+        </div>
+    </div>
 </header>
 
-<main id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-900">
-    <div class="bg-blue-900 p-4 rounded-lg self-start max-w-xl shadow-md border border-blue-700">
-        Hallo! Ich bin SyntraCore. Wie kann ich dir heute helfen?
-    </div>
-</main>
+<main class="flex-1 overflow-hidden">
+    <div class="max-w-6xl mx-auto h-full flex flex-col">
+        <div id="chat-box" class="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-900">
+            <div class="bg-blue-900 p-4 rounded-lg self-start max-w-xl shadow-md border border-blue-700">
+                Hallo! Ich bin SyntraCore. Wie kann ich dir heute helfen?
+            </div>
+        </div>
+
+        <div class="px-6 pb-2">
+            <div id="typingIndicator" class="hidden text-sm text-gray-400">
+                SyntraBot is typing…
+            </div>
+        </div>
 
 <footer class="p-6 bg-gray-800 border-t border-gray-700">
     <div class="flex gap-4">
         <input type="text" id="message" placeholder="Frage eingeben..."
                class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
-        <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">
-            Senden
-        </button>
+                <button id="sendBtn" onclick="sendMessage()"
+                        class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">
+                    Senden
+                </button>
+            </div>
+        </footer>
     </div>
-</footer>
+</main>
 
 <script>
-    var stompClient = null;
+    // UPDATE #58: typing indicator + persona preview
+    let stompClient = null;
+
+    function setTyping(isTyping) {
+        const el = document.getElementById("typingIndicator");
+        if (!el) return;
+        el.classList.toggle("hidden", !isTyping);
+    }
+
+    async function loadPersonaPreview() {
+        try {
+            const res = await fetch("/admin/persona");
+            if (!res.ok) return;
+            const persona = await res.json();
+
+            document.getElementById("personaName").textContent = persona.name || "Default Persona";
+            document.getElementById("personaStyle").textContent = persona.speakingStyle || "";
+
+            const avatarUrl = persona?.traits?.avatarUrl;
+            if (avatarUrl) document.getElementById("personaAvatar").src = avatarUrl;
+        } catch (e) {
+            // ignore
+        }
+    }
 
     function connect() {
-        var socket = new SockJS('/ws-support');
+        const socket = new SockJS('/ws-support');
         stompClient = Stomp.over(socket);
-        stompClient.connect({}, function (frame) {
+
+        stompClient.connect({}, function () {
             document.getElementById('status').innerText = "Verbunden";
             document.getElementById('status').classList.replace('text-red-500', 'text-green-500');
 
+            loadPersonaPreview();
+
             stompClient.subscribe('/topic/public', function (response) {
-                showGreeting(response.body);
+                showAssistantMessage(response.body);
+                setTyping(false);
             });
         });
     }
 
     function sendMessage() {
-        var msg = document.getElementById('message').value;
-        if(msg && stompClient) {
+        const input = document.getElementById('message');
+        const msg = input.value;
+
+        if (msg && stompClient) {
             appendUserMessage(msg);
+            setTyping(true);
             stompClient.send("/app/chat.sendMessage", {}, msg);
-            document.getElementById('message').value = '';
+            input.value = '';
+            input.focus();
         }
     }
 
     function appendUserMessage(msg) {
-        var chat = document.getElementById('chat-box');
-        chat.innerHTML += `<div class='bg-gray-700 p-4 rounded-lg self-end max-w-xl ml-auto border border-gray-600 shadow-sm'>${msg}</div>`;
+        const chat = document.getElementById('chat-box');
+        chat.innerHTML += `<div class='bg-gray-700 p-4 rounded-lg self-end max-w-xl ml-auto border border-gray-600 shadow-sm'>${escapeHtml(msg)}</div>`;
         chat.scrollTop = chat.scrollHeight;
     }
 
-    function showGreeting(message) {
-        var chat = document.getElementById('chat-box');
-        chat.innerHTML += `<div class='bg-blue-900 p-4 rounded-lg self-start max-w-xl border border-blue-700 shadow-md'>${message}</div>`;
+    function showAssistantMessage(message) {
+        const chat = document.getElementById('chat-box');
+        chat.innerHTML += `<div class='bg-blue-900 p-4 rounded-lg self-start max-w-xl border border-blue-700 shadow-md'>${escapeHtml(message)}</div>`;
         chat.scrollTop = chat.scrollHeight;
     }
+
+    function escapeHtml(text) {
+        return String(text)
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    document.getElementById("message").addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
 
     connect();
 </script>
