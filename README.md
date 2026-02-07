@@ -1,8 +1,33 @@
-# SyntraCore Development Repository
+# 🚀 SyntraCore – Intelligent Support Engine
 
-## 📋 Projektübersicht
+[![Java](https://img.shields.io/badge/Java-21-orange?style=for-the-badge&logo=java)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.3-brightgreen?style=for-the-badge&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Architecture](https://img.shields.io/badge/Architecture-Hexagonal-blue?style=for-the-badge)](https://en.wikipedia.org/wiki/Hexagonal_architecture_(software))
 
-**SyntraCore** ist ein KI-gestütztes Support-System, das auf **Spring Boot (v3.2.3)** basiert und nach den Prinzipien der **Hexagonalen Architektur** (Ports & Adapters) entwickelt wurde. Das System nutzt **RAG (Retrieval-Augmented Generation)**, um Anfragen mit spezifischem Wissen zu beantworten.
+**SyntraCore** ist ein KI-gestütztes Support-System auf Basis von **Java 21** und **Spring Boot 3.2.x**.  
+Das System nutzt **RAG (Retrieval-Augmented Generation)**, um Support-Anfragen präzise, kontextbewusst und im Stil definierbarer Persönlichkeiten (**Personas**) zu beantworten.
+
+---
+
+## 📋 Inhaltsverzeichnis
+
+---
+
+## ✨ Kernfeatures
+
+### 💬 Live-Chat & KI-Interaktion
+- **Echtzeit-Support:** WebSockets (STOMP/SockJS) für eine flüssige User Experience.
+- **RAG-Engine:** Kontextbasierte Wissensanreicherung, damit die KI nur relevante Fakten erhält.
+- **Persona Preview:** Live-UI zeigt Persona-Name/Stil und optional ein Avatar (Trait `avatarUrl`).
+
+### 🛠 Admin-Panel (Management-Zentrale)
+- **Knowledge Ingest:** Pflege der Wissensbasis über die Admin-Oberfläche.
+- **Ticket Management:** Übersicht über offene Tickets + Status-Handling (Resolve).
+- **Persona Studio:** Konfiguration von Prompt-Templates, Traits (JSON) und optionalen Beispieldialogen.
+
+### 🧩 KI-Adapter (OpenRouter)
+- Austauschbare KI-Anbindung über Port/Adapter.
+- Sauberes Fallback-Verhalten, wenn kein API-Key gesetzt ist (Demo-freundlich).
 
 Aktuell ist SyntraCore in der **Phase 2** und konzentriert sich auf folgende Kernbereiche:
 - Domain-Modellierung und **Business-Logik**
@@ -12,79 +37,32 @@ Aktuell ist SyntraCore in der **Phase 2** und konzentriert sich auf folgende Ker
 
 ---
 
-## 🏗️ Architektur und Design
+## 🏗 Architektur & Design
 
-SyntraCore folgt der **Hexagonalen Architektur**, die eine klare Trennung zwischen der Geschäftslogik und technischer Infrastruktur sicherstellt. Die Hauptbestandteile der Architektur sind:
+SyntraCore ist nach der **Hexagonalen Architektur (Ports & Adapters)** strukturiert.  
+Ziel: **Fachlogik** (Core) bleibt unabhängig von **Frameworks** und **Infrastruktur**.
 
-### 🔹 Schichtendiagramm:
-```plaintext
-┌──────────────────────────────────────────────────────────────┐
-│                     Application Layer                        │
-│               (SyntraCoreApplication.java)                  │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     Service Layer                            │
-│   (TicketService, orchestriert KI-Integration & DB)          │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│                     Domain Layer                             │
-│ (SupportTicket und Ports wie TicketRepositoryPort, AiPort)   │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│                  Adapter Layer                               │
-│ - Database Adapter: JPA Entitäten + Repository               │
-│ - KI Adapter: OpenAI Integration für RAG                    │
-└──────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌──────────────────────────────────────────────────────────────┐
-│              Datenbanken & externe KI-Dienste               │
-└──────────────────────────────────────────────────────────────┘
-```
-
-### 🔹 Schichtenerklärung:
-
-1. **Application Layer**:
-    - Einstiegspunkt der Anwendung (`SyntraCoreApplication`) und Basis-Setup.
-
-2. **Service Layer** (Orchestrierung):
-    - Enthält Geschäftslogik, um Abläufe wie das Anlegen eines Tickets und die KI-Analyse zu koordinieren.
-
-3. **Domain Layer**:
-    - **Business-Logik** und zentrale Schnittstellen:
-        - `SupportTicket`: Zentrales Modell für Tickets.
-        - `TicketRepositoryPort`: Schnittstelle für Datenbankspeicherungen.
-        - `AiServicePort`: Schnittstelle für KI-Analysen.
-
-4. **Adapter Layer**:
-    - Bindeglied zu externen Systemen:
-        - **Datenbank-Adapter**: Verbindet JPA mit dem Domain-Modell (`TicketDatabaseAdapter`).
-        - **KI-Adapter**: Implementiert das `AiServicePort` Interface (z. B. OpenAI).
+### Schichtentrennung
+- **Core (Domain & Services):** Reine Geschäftslogik + Port-Definitionen (Schnittstellen).
+- **Inbound Adapters:** Web (Thymeleaf/Admin) + WebSocket (Live-Chat).
+- **Outbound Adapters:** Persistenz (H2/PostgreSQL via Adapter) + KI-Kommunikation (OpenRouter).
 
 ---
 
-## 🛠️ Technologie-Stack
+## 🛠 Technologie-Stack
 
-- **Programmiersprache**: Java 21
-- **Framework**: Spring Boot 3.2.3
-- **Datenbank**: H2 (lokal) bzw. PostgreSQL (Cloud)
-- **KI-Integration**: OpenAI über REST-Adapter
-- **Persistenz**: Spring Data JPA
-- **Web-Framework**: WebSocket (STOMP) und REST
-- **Build-Tool**: Maven
-- **Weitere Tools**: Lombok zur Reduzierung von Boilerplate Code
+| Komponente | Technologie |
+| :--- | :--- |
+| **Sprache** | Java 21 (LTS) |
+| **Framework** | Spring Boot 3.2.x |
+| **Frontend/Web** | Thymeleaf, HTML5, JavaScript (SockJS, STOMP) |
+| **KI-Integration** | OpenRouter API (Chat Completions) |
+| **Datenbank** | H2 (In-Memory) / PostgreSQL |
+| **Build-Management** | Maven |
 
 ---
 
-## 🚀 Setup und Start
-
-### Voraussetzungen:
+## 📁 Projektstruktur
 
 - **Java 21** oder neuer
 - **Maven 3.6+**
@@ -192,3 +170,13 @@ src/main/resources/
 ---
 
 Wenn Sie weitere Details benötigen oder gezielte Anpassungen wünschen, lassen Sie es mich wissen! 😊
+
+## 🚀 Setup & Start
+
+### Voraussetzungen
+- Java 21+
+- Maven 3.6+
+- (Optional) OpenRouter API-Key (sonst liefert das System einen verständlichen Hinweis “KI nicht konfiguriert”)
+
+### Installation
+Repository klonen:
