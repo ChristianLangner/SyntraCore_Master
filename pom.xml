@@ -62,6 +62,20 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- pgvector for PostgreSQL vector operations -->
+        <dependency>
+            <groupId>com.pgvector</groupId>
+            <artifactId>pgvector</artifactId>
+            <version>0.1.4</version>
+        </dependency>
+
+        <!-- Hypersistence Utils for JSON mapping -->
+        <dependency>
+            <groupId>io.hypersistence</groupId>
+            <artifactId>hypersistence-utils-hibernate-63</artifactId>
+            <version>3.7.3</version>
+        </dependency>
+
         <!-- Tooling -->
         <dependency>
             <groupId>org.projectlombok</groupId>
