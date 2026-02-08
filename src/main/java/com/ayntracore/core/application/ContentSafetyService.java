@@ -33,10 +33,9 @@ import java.util.regex.Pattern;
  *
  * @author Christian Langner
  * @version 1.0
- * @since 2026
- *
  * @see Persona
  * @see PersonaType
+ * @since 2026
  */
 @Service
 @Slf4j
@@ -72,7 +71,7 @@ public class ContentSafetyService {
     /**
      * Prüft, ob ein Text expliziten Content enthält basierend auf Persona-Policy.
      *
-     * @param text Der zu prüfende Text
+     * @param text    Der zu prüfende Text
      * @param persona Die Persona mit Content-Policy
      * @return true, wenn der Text blockiert werden sollte
      */
@@ -114,7 +113,7 @@ public class ContentSafetyService {
     /**
      * Validiert einen Bildgenerierungs-Prompt gegen die Persona-Policy.
      *
-     * @param prompt Der Bildgenerierungs-Prompt
+     * @param prompt  Der Bildgenerierungs-Prompt
      * @param persona Die Persona mit Content-Policy
      * @return Validierungs-Ergebnis mit Details
      */
@@ -149,7 +148,7 @@ public class ContentSafetyService {
      * Filtert expliziten Content aus einer Liste von RAG-Kontexten.
      *
      * @param contexts Die RAG-Kontexte
-     * @param persona Die Persona mit Content-Policy
+     * @param persona  Die Persona mit Content-Policy
      * @return Gefilterte Kontexte
      */
     public List<String> filterExplicitContexts(List<String> contexts, Persona persona) {
@@ -180,7 +179,7 @@ public class ContentSafetyService {
     /**
      * Bereinigt einen Text von expliziten Begriffen (für SUPPORT-Personas).
      *
-     * @param text Der zu bereinigende Text
+     * @param text    Der zu bereinigende Text
      * @param persona Die Persona
      * @return Bereinigter Text
      */
@@ -249,7 +248,7 @@ public class ContentSafetyService {
     /**
      * Validierungs-Ergebnis für Content-Checks.
      */
-    public record ValidationResult(boolean valid, String errorMessage) {
+    public record ValidationResult(boolean isValid, String errorMessage) {
 
         public static ValidationResult valid() {
             return new ValidationResult(true, null);
@@ -260,7 +259,7 @@ public class ContentSafetyService {
         }
 
         public boolean isInvalid() {
-            return !valid;
+            return !isValid;
         }
     }
 }

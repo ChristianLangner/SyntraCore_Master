@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 // UPDATE #9
 // Methodensignatur angepasst, um Port-Interface-Änderung zu erfüllen.
 package com.ayntracore.adapters.outbound.database;

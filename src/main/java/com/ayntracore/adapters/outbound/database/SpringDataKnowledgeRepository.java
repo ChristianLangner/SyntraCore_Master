@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.adapters.outbound.database;
 
 import org.springframework.data.jpa.repository.JpaRepository;

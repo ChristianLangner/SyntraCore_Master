@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.core.ports;
 
 import com.ayntracore.core.domain.SupportTicket;

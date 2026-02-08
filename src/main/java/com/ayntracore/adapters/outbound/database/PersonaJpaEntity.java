@@ -40,6 +40,7 @@ public class PersonaJpaEntity {
     @Column(name = "persona_type", nullable = false)
     private PersonaType personaType;
 
+    @Builder.Default
     @Column(name = "allow_explicit_content", nullable = false)
     private Boolean allowExplicitContent = false;
 
@@ -53,6 +54,7 @@ public class PersonaJpaEntity {
      * Frei erweiterbare Eigenschaften als JSONB.
      * Verwendet Hypersistence Utils für JSON-Mapping.
      */
+    @Builder.Default
     @Type(JsonBinaryType.class)
     @Column(columnDefinition = "jsonb")
     private Map<String, String> traits = new LinkedHashMap<>();

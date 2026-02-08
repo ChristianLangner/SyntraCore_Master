@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.core.domain;
 
 import java.time.LocalDateTime;

@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 // UPDATE #47: TicketController an neue TicketService Signatur angepasst
 package com.ayntracore.adapters.inbound.websocket;
 

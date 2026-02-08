@@ -29,9 +29,8 @@ import java.util.UUID;
  *
  * @author Christian Langner
  * @version 2.0
- * @since 2026
- *
  * @see PersonaType
+ * @since 2026
  */
 @Data
 @AllArgsConstructor
@@ -43,19 +42,29 @@ public class Persona {
 
     private String name;
 
-    /** Typ der Persona (SUPPORT oder COMPANION) */
+    /**
+     * Typ der Persona (SUPPORT oder COMPANION)
+     */
     private PersonaType personaType;
 
-    /** Erlaubt expliziten Content (nur für COMPANION relevant) */
+    /**
+     * Erlaubt expliziten Content (nur für COMPANION relevant)
+     */
     private Boolean allowExplicitContent = false;
 
-    /** Basis-Identität */
+    /**
+     * Basis-Identität
+     */
     private String systemPrompt;
 
-    /** Tonalität / Stil */
+    /**
+     * Tonalität / Stil
+     */
     private String speakingStyle;
 
-    /** Frei erweiterbare Eigenschaften (z.B. avatarUrl, role, responseFormat, brandVoice, ...) */
+    /**
+     * Frei erweiterbare Eigenschaften (z.B. avatarUrl, role, responseFormat, brandVoice, ...)
+     */
     private Map<String, String> traits = new LinkedHashMap<>();
 
     /**
@@ -64,8 +73,23 @@ public class Persona {
      */
     private String promptTemplate = defaultTemplate();
 
-    /** Optionales Beispiel (neutral) */
+    /**
+     * Optionales Beispiel (neutral)
+     */
     private String exampleDialog;
+
+    public Persona(UUID companyId, String name, String systemPrompt, String speakingStyle) {
+        this.id = UUID.randomUUID();
+        this.companyId = companyId;
+        this.name = name;
+        this.personaType = PersonaType.SUPPORT;
+        this.allowExplicitContent = false;
+        this.systemPrompt = systemPrompt;
+        this.speakingStyle = speakingStyle;
+        this.traits = new LinkedHashMap<>();
+        this.promptTemplate = defaultTemplate();
+        this.exampleDialog = null;
+    }
 
     public Persona(UUID companyId, String name, PersonaType personaType, String systemPrompt, String speakingStyle) {
         this.id = UUID.randomUUID();
@@ -80,14 +104,6 @@ public class Persona {
         this.exampleDialog = null;
     }
 
-    /**
-     * Prüft, ob die Persona expliziten Content generieren darf.
-     * Nur relevant für COMPANION-Personas.
-     */
-    public boolean canGenerateExplicitContent() {
-        return personaType == PersonaType.COMPANION && Boolean.TRUE.equals(allowExplicitContent);
-    }
-
     public static String defaultTemplate() {
         return ""
                 + "{{systemPrompt}}\n"
@@ -96,5 +112,13 @@ public class Persona {
                 + "\nTraits:\n{{traits}}\n"
                 + "\nContext:\n{{context}}\n"
                 + "\nRegeln: Antworte hilfreich. Stelle Rückfragen bei Unklarheit. Erfinde nichts.";
+    }
+
+    /**
+     * Prüft, ob die Persona expliziten Content generieren darf.
+     * Nur relevant für COMPANION-Personas.
+     */
+    public boolean canGenerateExplicitContent() {
+        return personaType == PersonaType.COMPANION && Boolean.TRUE.equals(allowExplicitContent);
     }
 }

@@ -9,6 +9,7 @@ import com.ayntracore.core.domain.Persona;
 import com.ayntracore.core.domain.SupportTicket;
 import com.ayntracore.core.ports.AiServicePort;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -41,10 +42,9 @@ import java.util.Map;
  *
  * @author Christian Langner
  * @version 2.0
- * @since 2026
- *
  * @see AiServicePort
  * @see Persona
+ * @since 2026
  */
 @Component
 @Profile("home")
@@ -127,7 +127,7 @@ public class OpenAiAdapter implements AiServicePort {
      *   <li><strong>Invalid Response:</strong> Fallback-Meldung</li>
      * </ul>
      *
-     * @param input User-Input oder Ticket-Message
+     * @param input   User-Input oder Ticket-Message
      * @param context RAG-Kontext aus Vector-Suche
      * @param persona Aktive Persona mit Prompt-Template
      * @return LLM-Response oder Fehlermeldung

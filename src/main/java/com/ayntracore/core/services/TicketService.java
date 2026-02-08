@@ -1,15 +1,13 @@
+// Autor: Christian Langner
 package com.ayntracore.core.services;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.ayntracore.core.domain.AiChatRequest;
 import com.ayntracore.core.domain.KnowledgeEntry;
 import com.ayntracore.core.domain.Persona;
 import com.ayntracore.core.domain.SupportTicket;
-import com.ayntracore.core.ports.KnowledgeBasePort;
-import com.ayntracore.core.ports.AiServicePort;
-import com.ayntracore.core.ports.PersonaRepositoryPort;
-import com.ayntracore.core.ports.TicketRepositoryPort;
-import com.ayntracore.core.ports.TicketUseCase;
+import com.ayntracore.core.ports.*;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,15 +26,13 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TicketService implements TicketUseCase {
 
-    private final TicketRepositoryPort ticketRepository;
-    private final KnowledgeBasePort knowledgeBase;
-    private final AiServicePort aiService;
-    private final PersonaRepositoryPort personaRepository;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
-
     private static final String DEFAULT_SYSTEM_PROMPT = "Du bist ein hilfreicher Support-Assistent.";
     private static final String DEFAULT_SPEAKING_STYLE = "Freundlich, klar, präzise.";
+    private final TicketRepositoryPort ticketRepository;
+    private final KnowledgeBasePort knowledgeBase;
+    private final UniversalAiPort aiService;
+    private final PersonaRepositoryPort personaRepository;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Admin: alle Knowledge-Einträge anzeigen.
@@ -119,7 +115,8 @@ public class TicketService implements TicketUseCase {
             return new LinkedHashMap<>();
         }
         try {
-            Map<String, Object> raw = objectMapper.readValue(traitsJson, new TypeReference<Map<String, Object>>() {});
+            Map<String, Object> raw = objectMapper.readValue(traitsJson, new TypeReference<Map<String, Object>>() {
+            });
             Map<String, String> result = new LinkedHashMap<>();
             raw.forEach((k, v) -> result.put(k, v == null ? "" : String.valueOf(v)));
             return result;
@@ -153,7 +150,8 @@ public class TicketService implements TicketUseCase {
 
         Persona persona = getPersonaForCompany(companyId);
 
-        String analysis = aiService.generateAnalysis(ticket, combinedContext, persona);
+        String systemPrompt = buildMasterSystemPrompt(combinedContext, persona);
+        String analysis = aiService.generateResponse(AiChatRequest.of(systemPrompt, "Analyze this ticket: " + message)).content();
         ticket.setAiAnalysis(analysis);
 
         ticketRepository.save(ticket);
@@ -166,7 +164,38 @@ public class TicketService implements TicketUseCase {
 
         Persona persona = getPersonaForCompany(companyId);
 
-        return aiService.generateChatResponse(userMessage, String.join("\n", context), persona);
+        String systemPrompt = buildMasterSystemPrompt(String.join("\n", context), persona);
+        return aiService.generateResponse(AiChatRequest.of(systemPrompt, userMessage)).content();
+    }
+
+    private String buildMasterSystemPrompt(String context, Persona persona) {
+        String promptContext = (context != null && !context.isEmpty()) ? context : "Allgemeiner Support.";
+        String effectiveSystemPrompt = (persona == null || persona.getSystemPrompt() == null || persona.getSystemPrompt().isBlank())
+                ? DEFAULT_SYSTEM_PROMPT
+                : persona.getSystemPrompt();
+        String effectiveStyle = (persona == null || persona.getSpeakingStyle() == null || persona.getSpeakingStyle().isBlank())
+                ? DEFAULT_SPEAKING_STYLE
+                : persona.getSpeakingStyle();
+        String effectiveName = (persona == null || persona.getName() == null || persona.getName().isBlank())
+                ? "Support Assistant"
+                : persona.getName();
+
+        StringBuilder traitsSb = new StringBuilder();
+        if (persona != null && persona.getTraits() != null) {
+            persona.getTraits().forEach((k, v) -> traitsSb.append("- ").append(k).append(": ").append(v).append("\n"));
+        }
+        String traitsBlock = traitsSb.length() > 0 ? traitsSb.toString().trim() : "- (keine)";
+
+        String template = (persona == null || persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank())
+                ? Persona.defaultTemplate()
+                : persona.getPromptTemplate();
+
+        return template
+                .replace("{{systemPrompt}}", effectiveSystemPrompt)
+                .replace("{{speakingStyle}}", effectiveStyle)
+                .replace("{{name}}", effectiveName)
+                .replace("{{traits}}", traitsBlock)
+                .replace("{{context}}", promptContext);
     }
 
     // ... existing code ...

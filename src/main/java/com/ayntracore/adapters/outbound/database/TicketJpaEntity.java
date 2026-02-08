@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 // UPDATE #35: TicketJpaEntity (UUID-Key)
 // Ort: src/main/java/com/ayntracore/adapters/outbound/database/TicketJpaEntity.java
 

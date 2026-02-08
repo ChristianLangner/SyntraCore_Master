@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.adapters.outbound.database;
 
 import com.ayntracore.core.domain.Persona;

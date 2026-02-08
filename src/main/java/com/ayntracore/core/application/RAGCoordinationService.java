@@ -1,9 +1,10 @@
 // Autor: Christian Langner
 package com.ayntracore.core.application;
 
+import com.ayntracore.core.domain.AiChatRequest;
 import com.ayntracore.core.domain.Knowledge;
 import com.ayntracore.core.domain.Persona;
-import com.ayntracore.core.ports.AiServicePort;
+import com.ayntracore.core.ports.UniversalAiPort;
 import com.ayntracore.core.ports.VectorSearchPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,19 +13,18 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 /**
  * Application Service für RAG-Koordination (Retrieval-Augmented Generation).
  *
  * <p><strong>Architektur-Schicht:</strong> Application Layer (Use Cases)</p>
- * <p><strong>Hexagonale Architektur:</strong> Orchestriert VectorSearchPort und AiServicePort</p>
+ * <p><strong>Hexagonale Architektur:</strong> Orchestriert VectorSearchPort und UniversalAiPort</p>
  *
  * <h2>RAG-Workflow:</h2>
  * <ol>
  *   <li><strong>Retrieval:</strong> Relevante Wissenseinträge via VectorSearchPort abrufen</li>
  *   <li><strong>Augmentation:</strong> Kontext mit Content-Safety-Filterung anreichern</li>
- *   <li><strong>Generation:</strong> LLM-Response via AiServicePort generieren</li>
+ *   <li><strong>Generation:</strong> LLM-Response via UniversalAiPort generieren</li>
  * </ol>
  *
  * <h2>Verantwortlichkeiten:</h2>
@@ -37,11 +37,10 @@ import java.util.stream.Collectors;
  *
  * @author Christian Langner
  * @version 1.0
- * @since 2026
- *
  * @see VectorSearchPort
- * @see AiServicePort
+ * @see UniversalAiPort
  * @see ContentSafetyService
+ * @since 2026
  */
 @Service
 @Profile("home")
@@ -49,19 +48,17 @@ import java.util.stream.Collectors;
 @Slf4j
 public class RAGCoordinationService {
 
-    private final VectorSearchPort vectorSearchPort;
-    private final AiServicePort aiServicePort;
-    private final ContentSafetyService contentSafetyService;
-
     /**
      * Default-Anzahl der abzurufenden Kontext-Einträge.
      */
     private static final int DEFAULT_CONTEXT_LIMIT = 5;
-
     /**
      * Default minimaler Similarity-Score für Relevanz.
      */
     private static final double DEFAULT_MIN_SIMILARITY = 0.7;
+    private final VectorSearchPort vectorSearchPort;
+    private final UniversalAiPort aiServicePort;
+    private final ContentSafetyService contentSafetyService;
 
     /**
      * Generiert eine LLM-Response mit RAG-Kontext.
@@ -75,7 +72,7 @@ public class RAGCoordinationService {
      * </ol>
      *
      * @param userMessage Die User-Anfrage
-     * @param persona Die aktive Persona
+     * @param persona     Die aktive Persona
      * @return Die generierte LLM-Response
      * @throws IllegalArgumentException bei unsicheren Inputs
      */
@@ -109,15 +106,16 @@ public class RAGCoordinationService {
         log.debug("Combined context length: {} characters", combinedContext.length());
 
         // 4. LLM-Response generieren
-        return aiServicePort.generateChatResponse(userMessage, combinedContext, persona);
+        AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona);
+        return aiServicePort.generateResponse(aiRequest).content();
     }
 
     /**
      * Generiert eine LLM-Response mit RAG-Kontext und konfigurierbaren Parametern.
      *
-     * @param userMessage Die User-Anfrage
-     * @param persona Die aktive Persona
-     * @param contextLimit Max. Anzahl der Kontext-Einträge
+     * @param userMessage   Die User-Anfrage
+     * @param persona       Die aktive Persona
+     * @param contextLimit  Max. Anzahl der Kontext-Einträge
      * @param minSimilarity Minimaler Similarity-Score (0.0 - 1.0)
      * @return Die generierte LLM-Response mit Metadaten
      */
@@ -155,7 +153,8 @@ public class RAGCoordinationService {
         String combinedContext = String.join("\n\n---\n\n", filteredContexts);
 
         // 4. LLM-Response generieren
-        String llmResponse = aiServicePort.generateChatResponse(userMessage, combinedContext, persona);
+        AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona);
+        String llmResponse = aiServicePort.generateResponse(aiRequest).content();
 
         // 5. Metadaten sammeln
         List<ContextMetadata> metadata = scoredKnowledge.stream()
@@ -190,7 +189,7 @@ public class RAGCoordinationService {
      * Generiert eine Ticket-Analyse mit RAG-Kontext.
      *
      * @param ticketMessage Der Ticket-Inhalt
-     * @param persona Die aktive Persona
+     * @param persona       Die aktive Persona
      * @return Die generierte Analyse
      */
     public String generateTicketAnalysisWithContext(String ticketMessage, Persona persona) {
@@ -212,13 +211,45 @@ public class RAGCoordinationService {
 
         String combinedContext = String.join("\n\n---\n\n", filteredContexts);
 
-        // Ticket-Analyse via AiServicePort generieren
+        // Ticket-Analyse via UniversalAiPort generieren
         // Note: SupportTicket benötigt für generateAnalysis - hier vereinfachte Version
-        return aiServicePort.generateChatResponse(
-                "Analyze this support ticket: " + ticketMessage,
-                combinedContext,
-                persona
-        );
+        AiChatRequest aiRequest = createAiRequest("Analyze this support ticket: " + ticketMessage, combinedContext, persona);
+        return aiServicePort.generateResponse(aiRequest).content();
+    }
+
+    private AiChatRequest createAiRequest(String input, String context, Persona persona) {
+        String systemPrompt = buildMasterSystemPrompt(context, persona);
+        return AiChatRequest.of(systemPrompt, input);
+    }
+
+    private String buildMasterSystemPrompt(String context, Persona persona) {
+        String promptContext = (context != null && !context.isEmpty()) ? context : "Allgemeiner Support.";
+        String effectiveSystemPrompt = (persona == null || persona.getSystemPrompt() == null || persona.getSystemPrompt().isBlank())
+                ? "Du bist ein Support-Experte."
+                : persona.getSystemPrompt();
+        String effectiveStyle = (persona == null || persona.getSpeakingStyle() == null || persona.getSpeakingStyle().isBlank())
+                ? "Freundlich, klar, präzise."
+                : persona.getSpeakingStyle();
+        String effectiveName = (persona == null || persona.getName() == null || persona.getName().isBlank())
+                ? "Support Assistant"
+                : persona.getName();
+
+        StringBuilder traitsSb = new StringBuilder();
+        if (persona != null && persona.getTraits() != null) {
+            persona.getTraits().forEach((k, v) -> traitsSb.append("- ").append(k).append(": ").append(v).append("\n"));
+        }
+        String traitsBlock = traitsSb.length() > 0 ? traitsSb.toString().trim() : "- (keine)";
+
+        String template = (persona == null || persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank())
+                ? Persona.defaultTemplate()
+                : persona.getPromptTemplate();
+
+        return template
+                .replace("{{systemPrompt}}", effectiveSystemPrompt)
+                .replace("{{speakingStyle}}", effectiveStyle)
+                .replace("{{name}}", effectiveName)
+                .replace("{{traits}}", traitsBlock)
+                .replace("{{context}}", promptContext);
     }
 
     /**

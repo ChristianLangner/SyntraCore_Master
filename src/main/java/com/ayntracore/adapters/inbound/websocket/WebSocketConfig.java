@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 // UPDATE #1: WebSocket-Konfigurations-Adapter
 // Zweck: Registrierung des STOMP-Endpunkts für die Echtzeit-Kommunikation
 // Ort: src/main/java/com/ayntracore/adapters/inbound/websocket/WebSocketConfig.java

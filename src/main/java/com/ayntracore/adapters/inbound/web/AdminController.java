@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.adapters.inbound.web;
 
 import com.ayntracore.core.domain.KnowledgeEntry;

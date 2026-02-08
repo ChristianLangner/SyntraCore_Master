@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.ayntracore.adapters.inbound.websocket;
 
 import com.ayntracore.core.ports.TicketUseCase;

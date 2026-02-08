@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 // UPDATE #1
 // Neue Domain-Entität für die Mandantenfähigkeit (Multi-Tenancy).
 // Zweck: Zentraler Anker für alle Daten eines spezifischen Kunden.

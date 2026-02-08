@@ -1,5 +1,6 @@
+// Autor: Christian Langner
 -- Autor: Christian Langner
--- SQL-Schema für SyntraCore: Persona-Erweiterung und RAG-Vektor-Integration
+-- SQL-Schema für AyntraCore: Persona-Erweiterung und RAG-Vektor-Integration
 -- Datenbank: Neon PostgreSQL mit pgvector Extension
 
 -- ============================================================
