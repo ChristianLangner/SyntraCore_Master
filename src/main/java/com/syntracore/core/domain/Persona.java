@@ -1,3 +1,4 @@
+// Autor: Christian Langner
 package com.syntracore.core.domain;
 
 import lombok.AllArgsConstructor;
@@ -9,13 +10,28 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * // UPDATE #58
  * Domain-Modell für eine Persona (Bot-Charakter) pro Company/Mandant.
  *
- * Flexibel:
- * - traits: frei erweiterbare Attribute (als JSON im Admin-UI)
- * - promptTemplate: Template mit Platzhaltern
- * - exampleDialog: optionales Few-Shot Beispiel (neutral)
+ * <p><strong>Architektur-Schicht:</strong> Domain-Modell (Hexagonal Core)</p>
+ * <p><strong>Framework-Unabhängigkeit:</strong> Keine Spring/JPA-Abhängigkeiten</p>
+ *
+ * <h2>Persona-Konzept:</h2>
+ * <p>Eine Persona definiert den Charakter und das Verhalten eines Bots.
+ * Jede Company kann ihre eigene Persona konfigurieren, um eine markenspezifische
+ * Kommunikation zu gewährleisten.</p>
+ *
+ * <h2>Flexibilität:</h2>
+ * <ul>
+ *   <li><strong>traits:</strong> Frei erweiterbare Attribute (als JSON im Admin-UI)</li>
+ *   <li><strong>promptTemplate:</strong> Template mit Platzhaltern für dynamische Prompts</li>
+ *   <li><strong>exampleDialog:</strong> Optionales Few-Shot Beispiel (neutral)</li>
+ * </ul>
+ *
+ * @author Christian Langner
+ * @version 2.0
+ * @since 2026
+ *
+ * @see PersonaType
  */
 @Data
 @AllArgsConstructor
@@ -26,6 +42,12 @@ public class Persona {
     private UUID companyId;
 
     private String name;
+
+    /** Typ der Persona (SUPPORT oder COMPANION) */
+    private PersonaType personaType;
+
+    /** Erlaubt expliziten Content (nur für COMPANION relevant) */
+    private Boolean allowExplicitContent = false;
 
     /** Basis-Identität */
     private String systemPrompt;
@@ -45,15 +67,25 @@ public class Persona {
     /** Optionales Beispiel (neutral) */
     private String exampleDialog;
 
-    public Persona(UUID companyId, String name, String systemPrompt, String speakingStyle) {
+    public Persona(UUID companyId, String name, PersonaType personaType, String systemPrompt, String speakingStyle) {
         this.id = UUID.randomUUID();
         this.companyId = companyId;
         this.name = name;
+        this.personaType = personaType;
+        this.allowExplicitContent = false;
         this.systemPrompt = systemPrompt;
         this.speakingStyle = speakingStyle;
         this.traits = new LinkedHashMap<>();
         this.promptTemplate = defaultTemplate();
         this.exampleDialog = null;
+    }
+
+    /**
+     * Prüft, ob die Persona expliziten Content generieren darf.
+     * Nur relevant für COMPANION-Personas.
+     */
+    public boolean canGenerateExplicitContent() {
+        return personaType == PersonaType.COMPANION && Boolean.TRUE.equals(allowExplicitContent);
     }
 
     public static String defaultTemplate() {
