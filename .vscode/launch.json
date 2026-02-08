@@ -1,0 +1,23 @@
+{
+    "version":  "0.2.0",
+    "configurations":  [
+                           {
+                               "name":  "AyntraCore: HOME (Neon)",
+                               "request":  "launch",
+                               "mainClass":  "com.ayntracore.AyntraCoreApplication",
+                               "type":  "java",
+                               "args":  "--spring.profiles.active=home",
+                               "env":  {
+                                           "PGUSER":  "neondb_owner",
+                                           "PGPASSWORD":  "npg_4LDepmQGJbT7"
+                                       }
+                           },
+                           {
+                               "args":  "--spring.profiles.active=school",
+                               "request":  "launch",
+                               "name":  "AyntraCore: SCHOOL (H2)",
+                               "mainClass":  "com.ayntracore.AyntraCoreApplication",
+                               "type":  "java"
+                           }
+                       ]
+}

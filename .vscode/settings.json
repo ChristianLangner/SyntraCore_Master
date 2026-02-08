@@ -1,0 +1,10 @@
+{
+  "terminal.integrated.env.windows": {
+    "SPRING_DATASOURCE_URL": "postgresql://neondb_owner:npg_4LDepmQGJbT7@ep-raspy-bird-agdreweq-pooler.c-2.eu-central-1.aws.neon.tech/neondb?sslmode=require",
+    "SPRING_DATASOURCE_USERNAME": "neondb_owner",
+    "SPRING_DATASOURCE_PASSWORD": "npg_4LDepmQGJbT7"
+  },
+  "kilocode.rules.directory": ".kilocode/rules",
+  "kilocode.contextLimit": 4000,
+  "java.configuration.updateBuildConfiguration": "interactive"
+}

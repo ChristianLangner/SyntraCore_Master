@@ -1,4 +1,11 @@
+# Secrets
+.env
+mcp_settings.json
+.mcp_settings.json
+
+# Build
 target/
-.idea/
 *.class
-.vscode/
+
+# Kilo Local
+.kilocode/checkpoints/
