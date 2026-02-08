@@ -12,10 +12,10 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.syntracore</groupId>
-    <artifactId>syntracore</artifactId>
+    <groupId>com.ayntracore</groupId>
+    <artifactId>ayntracore</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>SyntraCore</name>
+    <name>AyntraCore</name>
 
     <properties>
         <java.version>21</java.version>
