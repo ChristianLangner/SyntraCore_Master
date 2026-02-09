@@ -3,6 +3,8 @@ package com.ayntracore.adapters.outbound.database;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -51,19 +53,22 @@ import java.util.UUID;
  */
 @Repository
 public interface SpringDataTicketRepository extends JpaRepository<TicketJpaEntity, UUID> {
+    
     /**
-     * Template für spezielle Ticketabfragen via Method Naming:
+     * Findet alle Tickets für eine bestimmte Company (Mandantenfähigkeit).
      * 
-     * // Tickets nach Status finden
-     * List<TicketJpaEntity> findByStatus(String status);
-     * 
-     * // Tickets nach Kunde und Status
-     * List<TicketJpaEntity> findByCustomerIdAndStatus(UUID customerId, String status);
-     * 
-     * // Aktive Tickets (nicht geschlossen)
-     * List<TicketJpaEntity> findByStatusNot(String status);
-     * 
-     * // Tickets nach Priorität sortiert
-     * List<TicketJpaEntity> findByPriorityOrderByCreatedAtDesc(String priority);
+     * @param companyId Die UUID der Company
+     * @return Liste aller Tickets für diese Company
      */
+    List<TicketJpaEntity> findByCompanyId(UUID companyId);
+    
+    /**
+     * Findet ein einzelnes Ticket für eine bestimmte Company (Mandantenfähigkeit).
+     * Verhindert Cross-Tenant-Datenzugriff.
+     * 
+     * @param id Die UUID des Tickets
+     * @param companyId Die UUID der Company
+     * @return Optional mit dem Ticket, falls es existiert und zur Company gehört
+     */
+    Optional<TicketJpaEntity> findByIdAndCompanyId(UUID id, UUID companyId);
 }

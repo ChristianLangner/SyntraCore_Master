@@ -1,11 +1,36 @@
-# Secrets
+# Environment & Secrets
 .env
+.env.local
+*.env
 mcp_settings.json
 .mcp_settings.json
 
-# Build
+# Build Artifacts
 target/
+bin/
 *.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
 
-# Kilo Local
-.kilocode/checkpoints/
+# IDE Specific
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/launch.json
+.vscode/*.code-workspace
+
+# OS Specific
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Log Files
+*.log
+*.log.*
+
+# Temporary Files
+*.tmp
+.cache

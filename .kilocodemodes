@@ -1,7 +1,0 @@
-{
-  "customModes": [
-    { "slug": "syntra-planer", "name": "Asyntra-Architect", "roleDefinition": "Planer.", "groups": ["read"] },
-    { "slug": "syntra-coder", "name": "Asyntra-Coder", "roleDefinition": "Dev.", "groups": ["read", "edit", "command"] },
-    { "slug": "syntra-reviewer", "name": "Asyntra-Reviewer", "roleDefinition": "Auditor.", "groups": ["read"] }
-  ]
-}

@@ -32,6 +32,7 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
     }
 
     @Override
+    @Deprecated
     public List<SupportTicket> findAll() {
         return repository.findAll().stream()
                 .map(this::mapToDomain)
@@ -41,6 +42,18 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
     @Override
     public Optional<SupportTicket> findById(UUID id) {
         return repository.findById(id).map(this::mapToDomain);
+    }
+
+    @Override
+    public List<SupportTicket> findAllByCompanyId(UUID companyId) {
+        return repository.findByCompanyId(companyId).stream()
+                .map(this::mapToDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public Optional<SupportTicket> findByIdAndCompanyId(UUID id, UUID companyId) {
+        return repository.findByIdAndCompanyId(id, companyId).map(this::mapToDomain);
     }
 
     private SupportTicket mapToDomain(TicketJpaEntity entity) {

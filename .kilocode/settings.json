@@ -1,5 +1,0 @@
-{
-  "architect": "meta-llama/llama-4-scout",
-  "coder": "deepseek/deepseek-chat",
-  "reviewer": "qwen/qwen-2.5-72b-instruct"
-}
