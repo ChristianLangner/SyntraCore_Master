@@ -1,5 +1,5 @@
 // Autor: Christian Langner
-package com.asyntracore.adapters.persistence;
+package com.ayntracore.adapters.persistence;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

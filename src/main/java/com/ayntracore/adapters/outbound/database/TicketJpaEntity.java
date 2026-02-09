@@ -1,7 +1,4 @@
 // Autor: Christian Langner
-// UPDATE #35: TicketJpaEntity (UUID-Key)
-// Ort: src/main/java/com/ayntracore/adapters/outbound/database/TicketJpaEntity.java
-
 package com.ayntracore.adapters.outbound.database;
 
 import jakarta.persistence.*;
@@ -19,6 +16,7 @@ import java.util.UUID;
 public class TicketJpaEntity {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     private String customerName;
@@ -31,9 +29,7 @@ public class TicketJpaEntity {
     @Column(columnDefinition = "TEXT")
     private String aiAnalysis;
 
-    // Optional: Falls du den Status "gelöst" in der DB speichern willst
     private boolean resolved;
 
-    // NEU: Hier fehlte die Variable, weshalb setCompanyId/getCompanyId nicht funktionierten
     private UUID companyId;
 }

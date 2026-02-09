@@ -1,11 +1,9 @@
 // Autor: Christian Langner
-
 package com.ayntracore.adapters.outbound.database;
 
 import com.ayntracore.core.domain.SupportTicket;
 import com.ayntracore.core.ports.TicketRepositoryPort;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -15,7 +13,6 @@ import java.util.stream.Collectors;
 
 @Component
 @RequiredArgsConstructor
-@Profile({"school", "home"}) // Aktiv für lokale H2 und Cloud-Supabase
 public class TicketDatabaseAdapter implements TicketRepositoryPort {
 
     private final SpringDataTicketRepository repository;
@@ -29,7 +26,6 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
         entity.setCreatedAt(ticket.getCreatedAt());
         entity.setAiAnalysis(ticket.getAiAnalysis());
         entity.setResolved(ticket.isResolved());
-        // NEU: Mandanten-ID beim Speichern setzen
         entity.setCompanyId(ticket.getCompanyId());
 
         repository.save(entity);
@@ -48,11 +44,12 @@ public class TicketDatabaseAdapter implements TicketRepositoryPort {
     }
 
     private SupportTicket mapToDomain(TicketJpaEntity entity) {
-        // ÄNDERUNG: Konstruktor-Aufruf im Mapping anpassen
+        UUID effectiveCompanyId = entity.getCompanyId() != null ? entity.getCompanyId() : UUID.randomUUID();
+        
         SupportTicket ticket = new SupportTicket(
                 entity.getCustomerName(),
                 entity.getMessage(),
-                entity.getCompanyId()
+                effectiveCompanyId
         );
         ticket.setId(entity.getId());
         ticket.setCreatedAt(entity.getCreatedAt());

@@ -1,7 +1,5 @@
 target/
+bin/
 *.class
 .idea/
-.vscode/
-bin/
-pom.xml
-*.log
+.git/
