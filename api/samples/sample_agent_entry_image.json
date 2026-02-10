@@ -1,0 +1,7 @@
+{
+  "companyId": "<TENANT_UUID>",
+  "personaId": "RPG",
+  "mode": "image",
+  "query": "prompt=portrait of a ranger in a crystal cavern; seedLock=true",
+  "options": {}
+}

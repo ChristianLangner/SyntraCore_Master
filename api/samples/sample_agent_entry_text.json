@@ -1,0 +1,10 @@
+{
+  "companyId": "<TENANT_UUID>",
+  "personaId": "IHK",
+  "mode": "text",
+  "query": "Welche Metriken loggen wir im Vector Adapter?",
+  "options": {
+    "topK": 8,
+    "minScore": 0.7
+  }
+}

@@ -1,0 +1,121 @@
+{
+  "info": {
+    "name": "AyntraCore Agent & RAG",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "b9d7d2d2-aaaa-bbbb-cccc-1234567890ab"
+  },
+  "item": [
+    {
+      "name": "Persona Switch",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost/api/persona/switch",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "api",
+            "persona",
+            "switch"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"companyId\": \"<TENANT_UUID>\",\n  \"personaId\": \"IHK\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Agent Entry (text)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost/api/agent/entry",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "entry"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"companyId\": \"<TENANT_UUID>\",\n  \"personaId\": \"IHK\",\n  \"mode\": \"text\",\n  \"query\": \"Erkläre die Threshold-Logik...\",\n  \"options\": {\n    \"topK\": 8,\n    \"minScore\": 0.7\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "Agent Entry (image)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost/api/agent/entry",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "api",
+            "agent",
+            "entry"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"companyId\": \"<TENANT_UUID>\",\n  \"personaId\": \"RPG\",\n  \"mode\": \"image\",\n  \"query\": \"prompt=portrait of a ranger...; seedLock=true\",\n  \"options\": {}\n}"
+        }
+      }
+    },
+    {
+      "name": "RAG Insights",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "http://localhost/api/insights/rag?companyId=<TENANT_UUID>&since=2026-02-01T00:00:00Z",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "path": [
+            "api",
+            "insights",
+            "rag"
+          ],
+          "query": [
+            {
+              "key": "companyId",
+              "value": "<TENANT_UUID>"
+            },
+            {
+              "key": "since",
+              "value": "2026-02-01T00:00:00Z"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

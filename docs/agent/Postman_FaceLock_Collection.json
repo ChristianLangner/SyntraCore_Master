@@ -1,0 +1,42 @@
+
+{
+  "info": {
+    "name": "AyntraCore Face-Lock & Pose Studio",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "11111111-2222-3333-4444-555555555555"
+  },
+  "item": [
+    {
+      "name": "Upload Reference Face",
+      "request": {
+        "method": "POST",
+        "url": {"raw": "http://localhost/api/persona/:personaId/face/upload?companyId=<TENANT_UUID>", "host": ["http", "localhost"], "path": ["api","persona",":personaId","face","upload"], "query": [{"key":"companyId","value":"<TENANT_UUID>"}]},
+        "body": {"mode":"formdata", "formdata": [{"key":"face", "type":"file", "src":"/path/to/master.jpg"}]}
+      }
+    },
+    {
+      "name": "Patch Traits (referenceImageUrl)",
+      "request": {
+        "method": "PATCH",
+        "header": [{"key":"Content-Type", "value":"application/json"}],
+        "url": {"raw":"http://localhost/api/persona/:personaId/traits?companyId=<TENANT_UUID>", "host":["http","localhost"], "path":["api","persona",":personaId","traits"], "query":[{"key":"companyId","value":"<TENANT_UUID>"}]},
+        "body": {"mode":"raw", "raw": "{
+  "image": { "referenceImageUrl": "https://cdn.example/tenants/<TENANT_UUID>/faces/<PERSONA_ID>/master.jpg" }
+}"}
+      }
+    },
+    {
+      "name": "Generate (Face-Lock)",
+      "request": {
+        "method": "POST",
+        "header": [{"key":"Content-Type", "value":"application/json"}],
+        "url": {"raw": "http://localhost/api/image/generate?companyId=<TENANT_UUID>", "host": ["http","localhost"], "path": ["api","image","generate"], "query": [{"key":"companyId","value":"<TENANT_UUID>"}]},
+        "body": {"mode":"raw", "raw": "{
+  "prompt": "standing in a forest, action pose",
+  "posePreset": "standing_action",
+  "denoiseStrength": 0.35
+}"}
+      }
+    }
+  ]
+}

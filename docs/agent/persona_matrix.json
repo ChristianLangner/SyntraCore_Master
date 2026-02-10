@@ -1,0 +1,29 @@
+{
+  "IHK": {
+    "traits": {
+      "themeColor": "#0EA5E9",
+      "style": "formal",
+      "avatarUrl": "url('https://example.com/ihk.png')"
+    },
+    "features": { "sourceExplorer": true, "gallery": false },
+    "image": { "modelId": "civitai/realvisxl-v4", "cfgScale": 6.5, "sampler": "DPM++ 2M Karras", "steps": 28, "seed": 123456789 }
+  },
+  "RPG": {
+    "traits": {
+      "themeColor": "#A78BFA",
+      "style": "fantasy",
+      "avatarUrl": "url('https://example.com/rpg.png')"
+    },
+    "features": { "sourceExplorer": false, "gallery": true },
+    "image": { "modelId": "civitai/anything-v5", "cfgScale": 7.5, "sampler": "Euler a", "steps": 24 }
+  },
+  "Onboarding": {
+    "traits": {
+      "themeColor": "#22C55E",
+      "style": "calm",
+      "avatarUrl": "url('https://example.com/onboarding.png')"
+    },
+    "features": { "sourceExplorer": false, "gallery": false },
+    "image": { "modelId": "openai/flux-preview", "cfgScale": 6.0, "sampler": "DPM++ 2M Karras", "steps": 20 }
+  }
+}
