@@ -1,56 +1,23 @@
-// Autor: Christian Langner
 package com.ayntracore.adapters.outbound.database;
 
-import com.pgvector.PGvector;
 import com.ayntracore.core.domain.Knowledge;
 import com.ayntracore.core.ports.VectorSearchPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Outbound Adapter für Vektor-basierte Ähnlichkeitssuche mit pgvector.
+ * Outbound Adapter for vector-based similarity search using pgvector.
  *
- * <p><strong>Architektur-Schicht:</strong> Infrastructure Layer (Outbound Adapter)</p>
- * <p><strong>Hexagonale Architektur:</strong> Implementiert VectorSearchPort</p>
- *
- * <h2>Technologie-Stack:</h2>
- * <ul>
- *   <li><strong>Database:</strong> Neon PostgreSQL mit pgvector Extension</li>
- *   <li><strong>Embedding:</strong> OpenAI text-embedding-3-small (1536 Dimensionen)</li>
- *   <li><strong>Similarity:</strong> Cosine Similarity (operator: &lt;=&gt;)</li>
- *   <li><strong>JDBC:</strong> JdbcTemplate für native SQL-Abfragen</li>
- * </ul>
- *
- * <h2>Vektor-Operatoren (pgvector):</h2>
- * <ul>
- *   <li><strong>&lt;-&gt;</strong> L2 Distance (Euclidean)</li>
- *   <li><strong>&lt;=&gt;</strong> Cosine Distance (verwendet in diesem Adapter)</li>
- *   <li><strong>&lt;#&gt;</strong> Inner Product</li>
- * </ul>
- *
- * <h2>Performance-Optimierungen:</h2>
- * <ul>
- *   <li><strong>HNSW Index:</strong> Für schnelle Approximate Nearest Neighbor Search</li>
- *   <li><strong>Company-Filter:</strong> Pre-Filtering für Multi-Tenancy</li>
- *   <li><strong>Limit-Clause:</strong> Top-K Retrieval für effizienten RAG</li>
- * </ul>
- *
- * @author Christian Langner
- * @version 1.0
- * @since 2026
- *
- * @see VectorSearchPort
- * @see Knowledge
+ * <p><strong>Architecture Layer:</strong> Infrastructure Layer (Outbound Adapter)</p>
+ * <p><strong>Hexagonal Architecture:</strong> Implements VectorSearchPort</p>
  */
 @Component
 @Profile("home")
@@ -59,275 +26,100 @@ import java.util.UUID;
 public class VectorSearchAdapter implements VectorSearchPort {
 
     private final JdbcTemplate jdbcTemplate;
-    private final SpringDataKnowledgeRepository knowledgeRepository;
-    private final RestClient.Builder restClientBuilder;
 
-    private static final String OPENAI_EMBEDDING_URL = "https://api.openai.com/v1/embeddings";
-    private static final String OPENAI_EMBEDDING_MODEL = "text-embedding-3-small";
+    // Maps a database row to a Knowledge domain object.
+    private final RowMapper<Knowledge> rowMapper = (rs, rowNum) -> Knowledge.builder()
+            .id(rs.getLong("id"))
+            .companyId(rs.getObject("company_id", UUID.class))
+            .category(rs.getString("category"))
+            .content(rs.getString("content"))
+            .similarity(1 - rs.getFloat("distance")) // Calculate similarity from cosine distance
+            .build();
 
-    /**
-     * SQL-Query für Vektor-Ähnlichkeitssuche mit Cosine Distance.
-     * Verwendet pgvector operator: <=> (Cosine Distance)
-     *
-     * 1 - (embedding <=> ?) = Cosine Similarity (0.0 - 1.0)
-     */
-    private static final String VECTOR_SEARCH_SQL = """
-            SELECT id, company_id, content, category, source, embedding,
-                   1 - (embedding <=> ?::vector) AS similarity
-            FROM knowledge_base
-            WHERE company_id = ?::uuid
-            ORDER BY embedding <=> ?::vector
+    @Override
+    public List<Knowledge> search(UUID companyId, float[] embedding, int topK, double minSimilarity) {
+        final String sql = """
+            SELECT
+                id,
+                company_id,
+                category,
+                content,
+                embedding <=> ? AS distance
+            FROM
+                knowledge
+            WHERE
+                company_id = ? AND 1 - (embedding <=> ?) > ?
+            ORDER BY
+                distance ASC
             LIMIT ?
             """;
 
-    /**
-     * SQL-Query mit Similarity-Threshold.
-     */
-    private static final String VECTOR_SEARCH_WITH_SCORE_SQL = """
-            SELECT id, company_id, content, category, source, embedding,
-                   1 - (embedding <=> ?::vector) AS similarity
-            FROM knowledge_base
-            WHERE company_id = ?::uuid
-              AND 1 - (embedding <=> ?::vector) >= ?
-            ORDER BY embedding <=> ?::vector
-            LIMIT ?
-            """;
+        // The embedding needs to be passed in pgvector format.
+        String pgvectorEmbedding = toPgVectorString(embedding);
 
-    @Override
-    public List<Knowledge> findSimilarContext(String queryText, UUID companyId, int limit) {
-        log.debug("Finding similar context for query (length: {}), company: {}, limit: {}",
-                queryText.length(), companyId, limit);
+        long startTime = System.nanoTime();
+        List<Knowledge> matches = jdbcTemplate.query(
+                sql,
+                rowMapper,
+                pgvectorEmbedding,
+                companyId,
+                pgvectorEmbedding,
+                minSimilarity,
+                topK
+        );
+        long dbQueryMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
+        log.info("[LATENCY] db_query_ms:{}", dbQueryMs);
 
-        try {
-            // 1. Query-Text in Embedding umwandeln
-            float[] queryEmbedding = generateEmbedding(queryText);
+        // Structured logging of search results as per specifications.
+        logStructuredMatches(matches);
 
-            // 2. Vektor-Suche durchführen
-            return findSimilarContextByEmbedding(queryEmbedding, companyId, limit);
-
-        } catch (Exception e) {
-            log.error("Error during vector search for company: {}", companyId, e);
-            return List.of();
-        }
-    }
-
-    @Override
-    public List<Knowledge> findSimilarContextByEmbedding(float[] embedding, UUID companyId, int limit) {
-        log.debug("Executing vector search with embedding (dim: {}), company: {}, limit: {}",
-                embedding.length, companyId, limit);
-
-        try {
-            // PGvector-Objekt erstellen
-            PGvector pgVector = new PGvector(embedding);
-
-            // JDBC-Query mit pgvector operator
-            List<Knowledge> results = jdbcTemplate.query(
-                    VECTOR_SEARCH_SQL,
-                    ps -> {
-                        ps.setObject(1, pgVector); // Query embedding für Similarity-Berechnung
-                        ps.setObject(2, companyId);
-                        ps.setObject(3, pgVector); // Query embedding für ORDER BY
-                        ps.setInt(4, limit);
-                    },
-                    this::mapRowToKnowledge
-            );
-
-            log.info("Found {} similar knowledge entries for company: {}", results.size(), companyId);
-            return results;
-
-        } catch (Exception e) {
-            log.error("Error during vector search by embedding for company: {}", companyId, e);
-            return List.of();
-        }
-    }
-
-    @Override
-    public List<ScoredKnowledge> findSimilarContextWithScore(
-            String queryText,
-            UUID companyId,
-            int limit,
-            double minSimilarity
-    ) {
-        log.debug("Finding similar context with score (minSimilarity: {}), company: {}, limit: {}",
-                minSimilarity, companyId, limit);
-
-        try {
-            // 1. Query-Text in Embedding umwandeln
-            float[] queryEmbedding = generateEmbedding(queryText);
-
-            // 2. PGvector-Objekt erstellen
-            PGvector pgVector = new PGvector(queryEmbedding);
-
-            // 3. JDBC-Query mit Similarity-Threshold
-            List<ScoredKnowledge> results = jdbcTemplate.query(
-                    VECTOR_SEARCH_WITH_SCORE_SQL,
-                    ps -> {
-                        ps.setObject(1, pgVector); // Query embedding für Similarity-Berechnung
-                        ps.setObject(2, companyId);
-                        ps.setObject(3, pgVector); // Query embedding für WHERE-Clause
-                        ps.setDouble(4, minSimilarity);
-                        ps.setObject(5, pgVector); // Query embedding für ORDER BY
-                        ps.setInt(6, limit);
-                    },
-                    this::mapRowToScoredKnowledge
-            );
-
-            log.info("Found {} scored knowledge entries (minSimilarity: {}) for company: {}",
-                    results.size(), minSimilarity, companyId);
-            return results;
-
-        } catch (Exception e) {
-            log.error("Error during scored vector search for company: {}", companyId, e);
-            return List.of();
-        }
-    }
-
-    @Override
-    public Knowledge saveWithEmbedding(Knowledge knowledge) {
-        log.info("Saving knowledge with embedding for company: {}", knowledge.getCompanyId());
-
-        try {
-            // 1. Embedding generieren, falls nicht vorhanden
-            if (!knowledge.hasEmbedding()) {
-                log.debug("Generating embedding for content (length: {})", knowledge.getContent().length());
-                float[] embedding = generateEmbedding(knowledge.getContent());
-                knowledge.setEmbedding(embedding);
-            }
-
-            // 2. Domain-Modell zu JPA-Entity konvertieren
-            KnowledgeJpaEntity entity = mapToJpaEntity(knowledge);
-
-            // 3. Speichern via JPA
-            KnowledgeJpaEntity savedEntity = knowledgeRepository.save(entity);
-
-            // 4. Zurück zu Domain-Modell konvertieren
-            Knowledge savedKnowledge = mapToDomain(savedEntity);
-
-            log.info("Knowledge saved with id: {}", savedKnowledge.getId());
-            return savedKnowledge;
-
-        } catch (Exception e) {
-            log.error("Error saving knowledge with embedding for company: {}", knowledge.getCompanyId(), e);
-            throw new RuntimeException("Failed to save knowledge with embedding", e);
-        }
+        return matches;
     }
 
     /**
-     * Generiert ein Embedding für einen Text via OpenAI API.
+     * Logs each vector search match according to the defined structured logging format.
+     * Differentiates between relevant matches and low-relevance warnings.
      *
-     * @param text Der zu embeddierende Text
-     * @return Das Embedding als float-Array (1536 Dimensionen)
+     * @param matches The list of Knowledge objects returned from the vector search.
      */
-    private float[] generateEmbedding(String text) {
-        log.debug("Generating embedding for text (length: {})", text.length());
-
-        try {
-            String apiKey = System.getenv("OPENAI_API_KEY");
-            if (apiKey == null || apiKey.isBlank()) {
-                throw new IllegalStateException("OPENAI_API_KEY not configured");
-            }
-
-            RestClient restClient = restClientBuilder
-                    .baseUrl(OPENAI_EMBEDDING_URL)
-                    .build();
-
-            Map<String, Object> requestBody = Map.of(
-                    "model", OPENAI_EMBEDDING_MODEL,
-                    "input", text
+    private void logStructuredMatches(List<Knowledge> matches) {
+        log.debug("Logging {} vector search matches for quality assurance.", matches.size());
+        for (Knowledge match : matches) {
+            double similarity = match.getSimilarity();
+            // Log every match with INFO level.
+            log.info("[VECTOR_MATCH] ID:{} Similarity:{} Category:{}",
+                    match.getId(),
+                    String.format("%.4f", similarity),
+                    match.getCategory()
             );
 
-            Map<String, Object> response = restClient.post()
-                    .uri("")
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .body(requestBody)
-                    .retrieve()
-                    .body(Map.class);
-
-            if (response == null || !response.containsKey("data")) {
-                throw new RuntimeException("Invalid response from OpenAI API");
+            // Add a specific WARNING for low-relevance matches.
+            if (similarity < 0.70) {
+                log.warn("[LOW_RELEVANCE_WARNING] ID:{} Similarity:{}",
+                        match.getId(),
+                        String.format("%.4f", similarity)
+                );
             }
+        }
+    }
 
-            List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
-            List<Double> embeddingList = (List<Double>) data.get(0).get("embedding");
 
-            float[] embedding = new float[embeddingList.size()];
-            for (int i = 0; i < embeddingList.size(); i++) {
-                embedding[i] = embeddingList.get(i).floatValue();
+    /**
+     * Converts a float array into a string representation compatible with pgvector.
+     * Example: [0.1, 0.2, 0.3] -> "[0.1,0.2,0.3]"
+     *
+     * @param embedding The embedding vector.
+     * @return A string representation for use in SQL queries.
+     */
+    private String toPgVectorString(float[] embedding) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < embedding.length; i++) {
+            sb.append(embedding[i]);
+            if (i < embedding.length - 1) {
+                sb.append(",");
             }
-
-            log.debug("Embedding generated successfully (dimensions: {})", embedding.length);
-            return embedding;
-
-        } catch (Exception e) {
-            log.error("Error generating embedding", e);
-            throw new RuntimeException("Failed to generate embedding", e);
         }
-    }
-
-    /**
-     * Mappt ResultSet-Row zu Knowledge Domain-Modell.
-     */
-    private Knowledge mapRowToKnowledge(ResultSet rs, int rowNum) throws SQLException {
-        Knowledge knowledge = new Knowledge();
-        knowledge.setId((UUID) rs.getObject("id"));
-        knowledge.setCompanyId((UUID) rs.getObject("company_id"));
-        knowledge.setContent(rs.getString("content"));
-        knowledge.setCategory(rs.getString("category"));
-        knowledge.setSource(rs.getString("source"));
-
-        // Embedding aus PGvector extrahieren
-        PGvector pgVector = (PGvector) rs.getObject("embedding");
-        if (pgVector != null) {
-            knowledge.setEmbedding(pgVector.toArray());
-        }
-
-        return knowledge;
-    }
-
-    /**
-     * Mappt ResultSet-Row zu ScoredKnowledge.
-     */
-    private ScoredKnowledge mapRowToScoredKnowledge(ResultSet rs, int rowNum) throws SQLException {
-        Knowledge knowledge = mapRowToKnowledge(rs, rowNum);
-        double similarity = rs.getDouble("similarity");
-        return new ScoredKnowledge(knowledge, similarity);
-    }
-
-    /**
-     * Mappt Knowledge Domain-Modell zu JPA-Entity.
-     */
-    private KnowledgeJpaEntity mapToJpaEntity(Knowledge knowledge) {
-        KnowledgeJpaEntity entity = KnowledgeJpaEntity.builder()
-                .id(knowledge.getId())
-                .companyId(knowledge.getCompanyId())
-                .content(knowledge.getContent())
-                .category(knowledge.getCategory())
-                .source(knowledge.getSource())
-                .build();
-
-        if (knowledge.hasEmbedding()) {
-            entity.setEmbedding(new PGvector(knowledge.getEmbedding()));
-        }
-
-        return entity;
-    }
-
-    /**
-     * Mappt JPA-Entity zu Knowledge Domain-Modell.
-     */
-    private Knowledge mapToDomain(KnowledgeJpaEntity entity) {
-        Knowledge knowledge = new Knowledge();
-        knowledge.setId(entity.getId());
-        knowledge.setCompanyId(entity.getCompanyId());
-        knowledge.setContent(entity.getContent());
-        knowledge.setCategory(entity.getCategory());
-        knowledge.setSource(entity.getSource());
-
-        if (entity.getEmbedding() != null) {
-            knowledge.setEmbedding(entity.getEmbedding().toArray());
-        }
-
-        return knowledge;
+        sb.append("]");
+        return sb.toString();
     }
 }

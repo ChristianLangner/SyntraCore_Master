@@ -7,13 +7,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary-color: #3B82F6; /* default blue */
+            --avatar-url: '/static/personas/default.png';
+        }
+        .bg-primary-color { background-color: var(--primary-color); }
+        .border-primary-color { border-color: var(--primary-color); }
+        .text-primary-color { color: var(--primary-color); }
+        #personaAvatar { background-image: url(var(--avatar-url)); }
+    </style>
 </head>
 <body class="bg-gray-900 text-white font-sans h-screen flex flex-col">
 
 <header class="p-6 bg-gray-800 border-b border-gray-700 shadow-xl">
     <div class="max-w-6xl mx-auto flex items-center justify-between gap-6">
         <div>
-            <h1 class="text-2xl font-bold text-blue-400">AyntraCore Live-Support</h1>
+            <h1 class="text-2xl font-bold text-primary-color">AyntraCore Live-Support</h1>
             <p class="text-sm text-gray-400">
                 Status: <span id="status" class="text-red-500">Getrennt</span>
                 <span class="mx-2 text-gray-600">•</span>
@@ -52,7 +62,7 @@
         <input type="text" id="message" placeholder="Frage eingeben..."
                class="flex-1 p-3 rounded-lg bg-gray-700 border border-gray-600 focus:outline-none focus:border-blue-500">
                 <button id="sendBtn" onclick="sendMessage()"
-                        class="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">
+                        class="bg-primary-color hover:opacity-90 px-6 py-3 rounded-lg font-bold transition">
                     Senden
                 </button>
             </div>
@@ -61,13 +71,25 @@
 </main>
 
 <script>
-    // UPDATE #58: typing indicator + persona preview
     let stompClient = null;
 
     function setTyping(isTyping) {
         const el = document.getElementById("typingIndicator");
         if (!el) return;
         el.classList.toggle("hidden", !isTyping);
+    }
+
+    function applyPersonaBranding(persona) {
+        const root = document.documentElement;
+        const themeColor = persona?.traits?.themeColor;
+        const avatarUrl = persona?.traits?.avatarUrl;
+
+        if (themeColor) {
+            root.style.setProperty('--primary-color', themeColor);
+        }
+        if (avatarUrl) {
+            document.getElementById('personaAvatar').src = avatarUrl;
+        }
     }
 
     async function loadPersonaPreview() {
@@ -79,8 +101,7 @@
             document.getElementById("personaName").textContent = persona.name || "Default Persona";
             document.getElementById("personaStyle").textContent = persona.speakingStyle || "";
 
-            const avatarUrl = persona?.traits?.avatarUrl;
-            if (avatarUrl) document.getElementById("personaAvatar").src = avatarUrl;
+            applyPersonaBranding(persona);
         } catch (e) {
             // ignore
         }
@@ -97,7 +118,8 @@
             loadPersonaPreview();
 
             stompClient.subscribe('/topic/public', function (response) {
-                showAssistantMessage(response.body);
+                const parsedResponse = JSON.parse(response.body);
+                showAssistantMessage(parsedResponse.content, parsedResponse.sources);
                 setTyping(false);
             });
         });
@@ -122,9 +144,15 @@
         chat.scrollTop = chat.scrollHeight;
     }
 
-    function showAssistantMessage(message) {
+    function showAssistantMessage(message, sources) {
         const chat = document.getElementById('chat-box');
-        chat.innerHTML += `<div class='bg-blue-900 p-4 rounded-lg self-start max-w-xl border border-blue-700 shadow-md'>${escapeHtml(message)}</div>`;
+        let sourcesHtml = '';
+        if (sources && sources.length > 0) {
+            sourcesHtml = '<div class="sources mt-2 pt-2 border-t border-blue-800 text-xs text-gray-400">Quellen: ';
+            sourcesHtml += sources.map(s => `<span>${s.category}</span>`).join(', ');
+            sourcesHtml += '</div>';
+        }
+        chat.innerHTML += `<div class='bg-blue-900 p-4 rounded-lg self-start max-w-xl border border-blue-700 shadow-md'>${escapeHtml(message)}${sourcesHtml}</div>`;
         chat.scrollTop = chat.scrollHeight;
     }
 

@@ -1,6 +1,7 @@
 // Autor: Christian Langner
 package com.ayntracore.core.application;
 
+import com.ayntracore.core.domain.AppType;
 import com.ayntracore.core.domain.Persona;
 import com.ayntracore.core.domain.PersonaType;
 import com.ayntracore.core.ports.PersonaOutputPort;
@@ -9,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -48,6 +50,45 @@ import java.util.UUID;
 public class PersonaService {
 
     private final PersonaOutputPort personaOutputPort;
+
+    /**
+     * Loads a persona preset based on the application type.
+     *
+     * @param type The application type (e.g., RPG, IHK_EXPERT).
+     * @return The configured persona.
+     */
+    public Persona loadAppPreset(AppType type) {
+        return switch (type) {
+            case RPG -> createRpgPreset();
+            case IHK_EXPERT -> createIhkExpertPreset();
+            case DEV_ONBOARDING -> createDevOnboardingPreset();
+        };
+    }
+
+    private Persona createRpgPreset() {
+        Persona persona = new Persona();
+        persona.setPersonaType(PersonaType.COMPANION);
+        persona.setSpeakingStyle("emotional");
+        persona.setTraits(Map.of("imageGeneration", true));
+        return persona;
+    }
+
+    private Persona createIhkExpertPreset() {
+        Persona persona = new Persona();
+        persona.setPersonaType(PersonaType.SUPPORT);
+        persona.setSpeakingStyle("professional");
+        persona.setSystemPrompt("Focus on architecture and technical accuracy.");
+        return persona;
+    }
+
+    private Persona createDevOnboardingPreset() {
+        Persona persona = new Persona();
+        persona.setPersonaType(PersonaType.SUPPORT);
+        persona.setSpeakingStyle("supportive");
+        persona.setSystemPrompt("Assist new developers with codebase and processes.");
+        return persona;
+    }
+
 
     /**
      * Lädt die aktive Persona für eine Company.

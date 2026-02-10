@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 // ... existing code ...
 
@@ -145,8 +146,11 @@ public class TicketService implements TicketUseCase {
         UUID companyId = customerId;
         SupportTicket ticket = new SupportTicket(customerName, message, companyId);
 
-        List<String> context = knowledgeBase.findRelevantContext(message, companyId);
-        String combinedContext = String.join("\n", context);
+        List<KnowledgeEntry> contextEntries = knowledgeBase.findRelevantEntries(message, companyId, null);
+        String combinedContext = contextEntries.stream()
+                .map(KnowledgeEntry::getContent)
+                .collect(Collectors.joining("\n"));
+
 
         Persona persona = getPersonaForCompany(companyId);
 
@@ -160,13 +164,22 @@ public class TicketService implements TicketUseCase {
     @Override
     public String processInquiry(String userMessage, UUID customerId) {
         UUID companyId = customerId;
-        List<String> context = knowledgeBase.findRelevantContext(userMessage, companyId);
-
         Persona persona = getPersonaForCompany(companyId);
+
+        // Phase 3: Filter RAG context based on App-Kategorie from persona traits
+        String appCategory = persona.getTraits() != null ? persona.getTraits().get("appCategory") : null;
+
+        // Use the new filtering capability of the knowledge base
+        List<KnowledgeEntry> contextEntries = knowledgeBase.findRelevantEntries(userMessage, companyId, appCategory);
+
+        List<String> context = contextEntries.stream()
+                .map(KnowledgeEntry::getContent)
+                .collect(Collectors.toList());
 
         String systemPrompt = buildMasterSystemPrompt(String.join("\n", context), persona);
         return aiService.generateResponse(AiChatRequest.of(systemPrompt, userMessage)).content();
     }
+
 
     private String buildMasterSystemPrompt(String context, Persona persona) {
         String promptContext = (context != null && !context.isEmpty()) ? context : "Allgemeiner Support.";
