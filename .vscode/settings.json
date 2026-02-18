@@ -11,5 +11,6 @@
   "editor.minimap.enabled": false,
   "editor.lineHeight": 1.5,
   "editor.fontSize": 13,
-  "java.import.maven.enabled": true
+  "java.import.maven.enabled": true,
+  "java.compile.nullAnalysis.mode": "automatic"
 }

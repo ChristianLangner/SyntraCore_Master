@@ -1,7 +1,7 @@
 // Autor: Christian Langner
 package com.ayntracore.core.ports;
 
-import com.ayntracore.core.domain.Knowledge;
+import com.ayntracore.core.domain.KnowledgeEntry;
 
 import java.util.List;
 import java.util.UUID;
@@ -31,10 +31,10 @@ import java.util.UUID;
  * </ul>
  *
  * @author Christian Langner
- * @version 1.0
+ * @version 1.1
  * @since 2026
  *
- * @see Knowledge
+ * @see KnowledgeEntry
  */
 public interface VectorSearchPort {
 
@@ -49,7 +49,7 @@ public interface VectorSearchPort {
      * @param limit Maximale Anzahl der zurückzugebenden Ergebnisse
      * @return Liste der ähnlichsten Knowledge-Einträge, sortiert nach Relevanz
      */
-    List<Knowledge> findSimilarContext(String queryText, UUID companyId, int limit);
+    List<KnowledgeEntry> findSimilarContext(String queryText, UUID companyId, int limit);
 
     /**
      * Findet ähnlichen Kontext anhand eines bereits vorhandenen Embeddings.
@@ -62,7 +62,7 @@ public interface VectorSearchPort {
      * @param limit Maximale Anzahl der zurückzugebenden Ergebnisse
      * @return Liste der ähnlichsten Knowledge-Einträge, sortiert nach Relevanz
      */
-    List<Knowledge> findSimilarContextByEmbedding(float[] embedding, UUID companyId, int limit);
+    List<KnowledgeEntry> findSimilarContextByEmbedding(float[] embedding, UUID companyId, int limit);
 
     /**
      * Findet ähnlichen Kontext mit zusätzlichem Similarity-Score.
@@ -85,16 +85,16 @@ public interface VectorSearchPort {
      *
      * <p>Das Embedding wird automatisch generiert, falls nicht vorhanden.</p>
      *
-     * @param knowledge Der zu speichernde Knowledge-Eintrag
+     * @param knowledgeEntry Der zu speichernde Knowledge-Eintrag
      * @return Der gespeicherte Knowledge-Eintrag mit generiertem Embedding
      */
-    Knowledge saveWithEmbedding(Knowledge knowledge);
+    KnowledgeEntry saveWithEmbedding(KnowledgeEntry knowledgeEntry);
 
     /**
      * Knowledge-Eintrag mit Ähnlichkeits-Score.
      */
     record ScoredKnowledge(
-            Knowledge knowledge,
+            KnowledgeEntry knowledgeEntry,
             double similarity
     ) {
         /**

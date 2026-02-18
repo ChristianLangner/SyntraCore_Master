@@ -8,47 +8,20 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Outbound-Adapter – Persistiert Wissenseinträge in relationaler Datenbank.
- * <p>
- * Implementiert den KnowledgeBasePort für JPA-basierte Datenzugriffe.
- * Übersetzt zwischen Domain-Modellen und JPA-Entities gemäß hexagonaler Architektur.
- * Aktiv nur im 'school'-Profil für lokale Schul-Umgebungen.
- * </p>
- *
- * <p><strong>Architektur-Schicht:</strong> Outbound-Adapter (Profile: school)</p>
- * <p><strong>Zweck:</strong> JPA-basierte Persistierung für Wissensbasisdaten</p>
- *
- * <h2>Profil-Basierte Aktivierung:</h2>
- * <ul>
- *   <li><strong>School-Profil:</strong> Lokale relationale Datenbank für Schul-Umgebungen</li>
- *   <li><strong>Resilienz-Strategie:</strong> Profile 'school' vs. 'home' für unterschiedliche Deployment-Szenarien</li>
- * </ul>
- *
- * @author Christian Langner
- * @version 2.0
- * @see com.ayntracore.core.domain.KnowledgeEntry
- * @see com.ayntracore.adapters.outbound.database.VectorKnowledgeAdapter
- * @since 2026
- */
 @Component
-// Wir lassen den Adapter für beide Profile aktiv (school für H2, home für Supabase)
 @Profile({"school", "home"})
 @RequiredArgsConstructor
 public class DatabaseKnowledgeAdapter implements KnowledgeBasePort {
 
     private final SpringDataKnowledgeRepository repository;
 
-    /**
-     * Filtert Wissen nun strikt nach der übergebenen companyId.
-     */
     @Override
     public List<String> findRelevantContext(String query, UUID companyId) {
         return repository.findAll().stream()
-                // ÄNDERUNG: Strikte Filterung nach Mandant
                 .filter(entity -> entity.getCompanyId() != null && entity.getCompanyId().equals(companyId))
                 .filter(entity -> entity.getContent().toLowerCase().contains(query.toLowerCase())
                         || entity.getCategory().toLowerCase().contains(query.toLowerCase()))
@@ -57,35 +30,61 @@ public class DatabaseKnowledgeAdapter implements KnowledgeBasePort {
     }
 
     @Override
+    public Optional<KnowledgeEntry> findById(UUID id, UUID companyId) {
+        return repository.findById(id)
+                .filter(entity -> entity.getCompanyId().equals(companyId))
+                .map(this::mapToDomain);
+    }
+
+    @Override
+    public List<KnowledgeEntry> findRelevantEntries(String query, UUID companyId, String category) {
+        return repository.findAll().stream()
+                .filter(entity -> entity.getCompanyId().equals(companyId))
+                .filter(entity -> category == null || entity.getCategory().equalsIgnoreCase(category))
+                .filter(entity -> entity.getContent().toLowerCase().contains(query.toLowerCase()))
+                .map(this::mapToDomain)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public KnowledgeEntry save(KnowledgeEntry entry) {
-        // Mapping inkl. companyId using Builder
-        KnowledgeJpaEntity jpaEntity = KnowledgeJpaEntity.builder()
-                .id(entry.getId())
-                .content(entry.getContent())
-                .category(entry.getCategory())
-                .source(entry.getSource())
-                .companyId(entry.getCompanyId())
-                .build();
+        KnowledgeJpaEntity jpaEntity = mapToJpa(entry);
         KnowledgeJpaEntity savedEntity = repository.save(jpaEntity);
-        return new KnowledgeEntry(
-                savedEntity.getId(),
-                savedEntity.getContent(),
-                savedEntity.getSource(),
-                savedEntity.getCategory(),
-                savedEntity.getCompanyId()
-        );
+        return mapToDomain(savedEntity);
     }
 
     @Override
     public List<KnowledgeEntry> findAll() {
         return repository.findAll().stream()
-                .map(entity -> new KnowledgeEntry(
-                        entity.getId(),
-                        entity.getContent(),
-                        entity.getSource(),
-                        entity.getCategory(),
-                        entity.getCompanyId()
-                ))
+                .map(this::mapToDomain)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Maps a KnowledgeJpaEntity to a KnowledgeEntry domain object using the builder.
+     * This centralization avoids repetition and simplifies constructor changes.
+     */
+    private KnowledgeEntry mapToDomain(KnowledgeJpaEntity entity) {
+        return KnowledgeEntry.builder()
+                .id(entity.getId())
+                .companyId(entity.getCompanyId())
+                .category(entity.getCategory())
+                .content(entity.getContent())
+                .source(entity.getSource())
+                // Embeddings are handled by the VectorSearchAdapter, so this can be null here.
+                .build();
+    }
+
+    /**
+     * Maps a KnowledgeEntry domain object to a KnowledgeJpaEntity.
+     */
+    private KnowledgeJpaEntity mapToJpa(KnowledgeEntry entry) {
+        return KnowledgeJpaEntity.builder()
+                .id(entry.getId())
+                .companyId(entry.getCompanyId())
+                .category(entry.getCategory())
+                .content(entry.getContent())
+                .source(entry.getSource())
+                .build();
     }
 }

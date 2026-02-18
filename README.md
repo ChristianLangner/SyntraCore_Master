@@ -1,7 +1,7 @@
 # 🚀 AyntraCore – Enterprise Multi-Tenant Persona & RAG Engine
 
-**Architektur-Level:** Hexagonal (Ports & Adapters) | **Phase:** 3.0 (Multi-Tenancy, RAG, Vector-Search)  
-**Stack:** Java 21 | Spring Boot 3.2.3 | PostgreSQL + pgvector | Jakarta EE  
+**Architektur-Level:** Hexagonal (Ports & Adapters) | **Phase:** 4.0 (Finalized, Documented)  
+**Stack:** Java 21 | Spring Boot 3.2.3 | PostgreSQL + pgvector for RAG | Jakarta EE  
 **Zielgruppe:** IHK-Prüfungskandidaten, Enterprise Architekten, AI-Engineer
 
 ---
@@ -45,7 +45,7 @@ _Pfad:_ `com.ayntracore.core.domain`
   - `traits`: JSON-Map für flexible Eigenschaften
   - `promptTemplate`: Dynamischer Prompt mit Platzhaltern
   
-- **`Knowledge`**: Wissensbasis-Eintrag mit Vektor-Embedding
+- **`KnowledgeEntry`**: Wissensbasis-Eintrag mit Vektor-Embedding
   - `companyId`: Tenant-Bezug
   - `content`: Der eigentliche Inhaltstext
   - `embedding`: float[] (1536-dim für OpenAI text-embedding-3-small)
@@ -242,5 +242,5 @@ DATABASE_URL=postgresql://...
 ---
 
 **Entwickelt von:** Christian Langner  
-**Version:** 3.0 | Multi-Tenancy, RAG, Enterprise-Ready  
+**Version:** 4.0 | Multi-Tenancy, RAG, Enterprise-Ready, Finalized & Documented 
 **Letzte Aktualisierung:** Februar 2026

@@ -1,7 +1,9 @@
 package com.ayntracore.adapters.outbound.database;
 
-import com.ayntracore.core.domain.Knowledge;
+import com.ayntracore.core.domain.KnowledgeEntry;
+import com.ayntracore.core.ports.EmbeddingPort;
 import com.ayntracore.core.ports.VectorSearchPort;
+import com.pgvector.PGvector;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Profile;
@@ -9,117 +11,98 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
-/**
- * Outbound Adapter for vector-based similarity search using pgvector.
- *
- * <p><strong>Architecture Layer:</strong> Infrastructure Layer (Outbound Adapter)</p>
- * <p><strong>Hexagonal Architecture:</strong> Implements VectorSearchPort</p>
- */
+
 @Component
-@Profile("home")
+@Profile("home") 
 @RequiredArgsConstructor
 @Slf4j
 public class VectorSearchAdapter implements VectorSearchPort {
 
     private final JdbcTemplate jdbcTemplate;
+    private final EmbeddingPort embeddingPort;
 
-    // Maps a database row to a Knowledge domain object.
-    private final RowMapper<Knowledge> rowMapper = (rs, rowNum) -> Knowledge.builder()
-            .id(rs.getLong("id"))
+    // Use the builder from Lombok to map the row to the object.
+    private final RowMapper<KnowledgeEntry> knowledgeRowMapper = (rs, rowNum) -> KnowledgeEntry.builder()
+            .id(rs.getObject("id", UUID.class))
             .companyId(rs.getObject("company_id", UUID.class))
             .category(rs.getString("category"))
             .content(rs.getString("content"))
-            .similarity(1 - rs.getFloat("distance")) // Calculate similarity from cosine distance
+            .source(rs.getString("source"))
+            .embedding(rs.getObject("embedding", PGvector.class) != null ? rs.getObject("embedding", PGvector.class).toArray() : null)
             .build();
 
+    // The ScoredKnowledge record uses the above RowMapper.
+    private final RowMapper<ScoredKnowledge> scoredKnowledgeRowMapper = (rs, rowNum) -> {
+        try {
+            return new ScoredKnowledge(
+                knowledgeRowMapper.mapRow(rs, rowNum),
+                rs.getDouble("similarity")
+            );
+        } catch (SQLException e) {
+            log.error("Failed to map row to ScoredKnowledge", e);
+            return null; // Or throw a custom exception
+        }
+    };
+
     @Override
-    public List<Knowledge> search(UUID companyId, float[] embedding, int topK, double minSimilarity) {
+    public List<KnowledgeEntry> findSimilarContext(String queryText, UUID companyId, int limit) {
+        PGvector embedding = embeddingPort.createEmbedding(queryText);
+        return findSimilarContextByEmbedding(embedding.toArray(), companyId, limit);
+    }
+
+    @Override
+    public List<KnowledgeEntry> findSimilarContextByEmbedding(float[] embedding, UUID companyId, int limit) {
         final String sql = """
-            SELECT
-                id,
-                company_id,
-                category,
-                content,
-                embedding <=> ? AS distance
-            FROM
-                knowledge
-            WHERE
-                company_id = ? AND 1 - (embedding <=> ?) > ?
-            ORDER BY
-                distance ASC
+            SELECT id, company_id, category, content, source, embedding
+            FROM knowledge_entry
+            WHERE company_id = ?
+            ORDER BY embedding <=> ?
             LIMIT ?
             """;
+        return jdbcTemplate.query(sql, knowledgeRowMapper, companyId, new PGvector(embedding), limit);
+    }
 
-        // The embedding needs to be passed in pgvector format.
-        String pgvectorEmbedding = toPgVectorString(embedding);
+    @Override
+    public List<ScoredKnowledge> findSimilarContextWithScore(String queryText, UUID companyId, int limit, double minSimilarity) {
+        PGvector embedding = embeddingPort.createEmbedding(queryText);
+        final String sql = """
+            SELECT id, company_id, category, content, source, embedding, 1 - (embedding <=> ?) AS similarity
+            FROM knowledge_entry
+            WHERE company_id = ? AND 1 - (embedding <=> ?) > ?
+            ORDER BY similarity DESC
+            LIMIT ?
+            """;
+        Object[] args = {new PGvector(embedding.toArray()), companyId, new PGvector(embedding.toArray()), minSimilarity, limit};
+        return jdbcTemplate.query(sql, scoredKnowledgeRowMapper, args);
+    }
 
-        long startTime = System.nanoTime();
-        List<Knowledge> matches = jdbcTemplate.query(
-                sql,
-                rowMapper,
-                pgvectorEmbedding,
-                companyId,
-                pgvectorEmbedding,
-                minSimilarity,
-                topK
+    @Override
+    public KnowledgeEntry saveWithEmbedding(KnowledgeEntry knowledge) {
+        // Use GETTER to check if embedding exists.
+        if (knowledge.getEmbedding() == null) {
+            log.debug("Embedding is missing for knowledge entry with id: {}. A new embedding will be generated.", knowledge.getId());
+            PGvector embeddingVector = embeddingPort.createEmbedding(knowledge.getContent());
+            // Use SETTER to update the embedding.
+            knowledge.setEmbedding(embeddingVector.toArray());
+        }
+
+        final String sql = "INSERT INTO knowledge_entry (id, company_id, category, content, source, embedding) VALUES (?, ?, ?, ?, ?, ?)";
+        
+        // Use GETTERS for the update.
+        jdbcTemplate.update(sql,
+                knowledge.getId(),
+                knowledge.getCompanyId(),
+                knowledge.getCategory(),
+                knowledge.getContent(),
+                knowledge.getSource(),
+                new PGvector(knowledge.getEmbedding())
         );
-        long dbQueryMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startTime);
-        log.info("[LATENCY] db_query_ms:{}", dbQueryMs);
-
-        // Structured logging of search results as per specifications.
-        logStructuredMatches(matches);
-
-        return matches;
-    }
-
-    /**
-     * Logs each vector search match according to the defined structured logging format.
-     * Differentiates between relevant matches and low-relevance warnings.
-     *
-     * @param matches The list of Knowledge objects returned from the vector search.
-     */
-    private void logStructuredMatches(List<Knowledge> matches) {
-        log.debug("Logging {} vector search matches for quality assurance.", matches.size());
-        for (Knowledge match : matches) {
-            double similarity = match.getSimilarity();
-            // Log every match with INFO level.
-            log.info("[VECTOR_MATCH] ID:{} Similarity:{} Category:{}",
-                    match.getId(),
-                    String.format("%.4f", similarity),
-                    match.getCategory()
-            );
-
-            // Add a specific WARNING for low-relevance matches.
-            if (similarity < 0.70) {
-                log.warn("[LOW_RELEVANCE_WARNING] ID:{} Similarity:{}",
-                        match.getId(),
-                        String.format("%.4f", similarity)
-                );
-            }
-        }
-    }
-
-
-    /**
-     * Converts a float array into a string representation compatible with pgvector.
-     * Example: [0.1, 0.2, 0.3] -> "[0.1,0.2,0.3]"
-     *
-     * @param embedding The embedding vector.
-     * @return A string representation for use in SQL queries.
-     */
-    private String toPgVectorString(float[] embedding) {
-        StringBuilder sb = new StringBuilder("[");
-        for (int i = 0; i < embedding.length; i++) {
-            sb.append(embedding[i]);
-            if (i < embedding.length - 1) {
-                sb.append(",");
-            }
-        }
-        sb.append("]");
-        return sb.toString();
+        
+        log.info("Successfully saved knowledge entry {} for company {}.", knowledge.getId(), knowledge.getCompanyId());
+        return knowledge;
     }
 }

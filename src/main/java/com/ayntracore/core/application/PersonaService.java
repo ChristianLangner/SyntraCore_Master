@@ -69,7 +69,7 @@ public class PersonaService {
         Persona persona = new Persona();
         persona.setPersonaType(PersonaType.COMPANION);
         persona.setSpeakingStyle("emotional");
-        persona.setTraits(Map.of("imageGeneration", true));
+        persona.setTraits(Map.of("imageGeneration", "true"));
         return persona;
     }
 
