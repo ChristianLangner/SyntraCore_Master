@@ -242,5 +242,6 @@ DATABASE_URL=postgresql://...
 ---
 
 **Entwickelt von:** Christian Langner  
-**Version:** 4.0 | Multi-Tenancy, RAG, Enterprise-Ready, Finalized & Documented 
+**Version:** 4.1 | Multi-Tenancy, RAG, Enterprise-Ready, Finalized & Documented 
+**Technologie-Stack:** Java 21, Spring Boot 3.2.3, PostgreSQL mit pgvector, Jakarta EE, Lombok, Maven.
 **Letzte Aktualisierung:** Februar 2026

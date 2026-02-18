@@ -15,9 +15,8 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
-
 @Component
-@Profile("home") 
+@Profile("home")
 @RequiredArgsConstructor
 @Slf4j
 public class VectorSearchAdapter implements VectorSearchPort {
@@ -25,7 +24,6 @@ public class VectorSearchAdapter implements VectorSearchPort {
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingPort embeddingPort;
 
-    // Use the builder from Lombok to map the row to the object.
     private final RowMapper<KnowledgeEntry> knowledgeRowMapper = (rs, rowNum) -> KnowledgeEntry.builder()
             .id(rs.getObject("id", UUID.class))
             .companyId(rs.getObject("company_id", UUID.class))
@@ -35,7 +33,6 @@ public class VectorSearchAdapter implements VectorSearchPort {
             .embedding(rs.getObject("embedding", PGvector.class) != null ? rs.getObject("embedding", PGvector.class).toArray() : null)
             .build();
 
-    // The ScoredKnowledge record uses the above RowMapper.
     private final RowMapper<ScoredKnowledge> scoredKnowledgeRowMapper = (rs, rowNum) -> {
         try {
             return new ScoredKnowledge(
@@ -44,14 +41,22 @@ public class VectorSearchAdapter implements VectorSearchPort {
             );
         } catch (SQLException e) {
             log.error("Failed to map row to ScoredKnowledge", e);
-            return null; // Or throw a custom exception
+            return null; 
         }
     };
 
     @Override
     public List<KnowledgeEntry> findSimilarContext(String queryText, UUID companyId, int limit) {
+        long startEmbedding = System.currentTimeMillis();
         PGvector embedding = embeddingPort.createEmbedding(queryText);
-        return findSimilarContextByEmbedding(embedding.toArray(), companyId, limit);
+        long endEmbedding = System.currentTimeMillis();
+
+        long startDb = System.currentTimeMillis();
+        List<KnowledgeEntry> results = findSimilarContextByEmbedding(embedding.toArray(), companyId, limit);
+        long endDb = System.currentTimeMillis();
+
+        log.info("[LATENCY] embedding_ms:{} db_query_ms:{}", (endEmbedding - startEmbedding), (endDb - startDb));
+        return results;
     }
 
     @Override
@@ -68,7 +73,10 @@ public class VectorSearchAdapter implements VectorSearchPort {
 
     @Override
     public List<ScoredKnowledge> findSimilarContextWithScore(String queryText, UUID companyId, int limit, double minSimilarity) {
+        long startEmbedding = System.currentTimeMillis();
         PGvector embedding = embeddingPort.createEmbedding(queryText);
+        long endEmbedding = System.currentTimeMillis();
+
         final String sql = """
             SELECT id, company_id, category, content, source, embedding, 1 - (embedding <=> ?) AS similarity
             FROM knowledge_entry
@@ -77,22 +85,29 @@ public class VectorSearchAdapter implements VectorSearchPort {
             LIMIT ?
             """;
         Object[] args = {new PGvector(embedding.toArray()), companyId, new PGvector(embedding.toArray()), minSimilarity, limit};
-        return jdbcTemplate.query(sql, scoredKnowledgeRowMapper, args);
+        
+        long startDb = System.currentTimeMillis();
+        List<ScoredKnowledge> results = jdbcTemplate.query(sql, scoredKnowledgeRowMapper, args);
+        long endDb = System.currentTimeMillis();
+        
+        log.info("[LATENCY] embedding_ms:{} db_query_ms:{}", (endEmbedding - startEmbedding), (endDb - startDb));
+        return results;
     }
 
     @Override
     public KnowledgeEntry saveWithEmbedding(KnowledgeEntry knowledge) {
-        // Use GETTER to check if embedding exists.
+        long embeddingLatency = 0;
         if (knowledge.getEmbedding() == null) {
             log.debug("Embedding is missing for knowledge entry with id: {}. A new embedding will be generated.", knowledge.getId());
+            long startEmbedding = System.currentTimeMillis();
             PGvector embeddingVector = embeddingPort.createEmbedding(knowledge.getContent());
-            // Use SETTER to update the embedding.
             knowledge.setEmbedding(embeddingVector.toArray());
+            embeddingLatency = System.currentTimeMillis() - startEmbedding;
         }
 
         final String sql = "INSERT INTO knowledge_entry (id, company_id, category, content, source, embedding) VALUES (?, ?, ?, ?, ?, ?)";
         
-        // Use GETTERS for the update.
+        long startDb = System.currentTimeMillis();
         jdbcTemplate.update(sql,
                 knowledge.getId(),
                 knowledge.getCompanyId(),
@@ -101,7 +116,9 @@ public class VectorSearchAdapter implements VectorSearchPort {
                 knowledge.getSource(),
                 new PGvector(knowledge.getEmbedding())
         );
-        
+        long endDb = System.currentTimeMillis();
+
+        log.info("[LATENCY] embedding_ms:{} db_query_ms:{}", embeddingLatency, (endDb - startDb));
         log.info("Successfully saved knowledge entry {} for company {}.", knowledge.getId(), knowledge.getCompanyId());
         return knowledge;
     }
