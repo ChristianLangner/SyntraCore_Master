@@ -8,14 +8,12 @@ import com.ayntracore.core.ports.UniversalAiPort;
 import com.ayntracore.core.ports.VectorSearchPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
-@Profile("home")
 @RequiredArgsConstructor
 @Slf4j
 public class RAGCoordinationService {

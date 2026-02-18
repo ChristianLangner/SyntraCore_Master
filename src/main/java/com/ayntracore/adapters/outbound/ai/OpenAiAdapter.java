@@ -5,7 +5,9 @@ import com.ayntracore.core.domain.AiChatRequest;
 import com.ayntracore.core.domain.AiProvider;
 import com.ayntracore.core.domain.AiResponse;
 import com.ayntracore.core.domain.AiResponseMetadata;
+import com.ayntracore.core.ports.EmbeddingPort;
 import com.ayntracore.core.ports.UniversalAiPort;
+import com.pgvector.PGvector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -24,18 +26,21 @@ import java.util.concurrent.SubmissionPublisher;
  */
 @Slf4j
 @Component
-public class OpenAiAdapter implements UniversalAiPort {
+public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
 
     private final RestClient restClient;
     private final String model;
+    private final String embeddingModel;
 
     public OpenAiAdapter(@Value("${ayntracore.ai.openai.api-key:}") String apiKey,
-                         @Value("${ayntracore.ai.openai.model:gpt-4o}") String model) {
+                         @Value("${ayntracore.ai.openai.model:gpt-4o}") String model,
+                         @Value("${ayntracore.ai.openai.embedding-model:text-embedding-ada-002}") String embeddingModel) {
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.openai.com/v1")
                 .defaultHeader("Authorization", "Bearer " + apiKey)
                 .build();
         this.model = model;
+        this.embeddingModel = embeddingModel;
     }
 
     @Override
@@ -105,6 +110,44 @@ public class OpenAiAdapter implements UniversalAiPort {
             }
         }).start();
         return publisher;
+    }
+
+    @Override
+    public PGvector createEmbedding(String text) {
+        log.info("Creating OpenAI embedding for model: {}", embeddingModel);
+
+        try {
+            Map<String, Object> body = Map.of(
+                    "input", text,
+                    "model", embeddingModel
+            );
+
+            Map<String, Object> response = restClient.post()
+                    .uri("/embeddings")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+            
+            if (response == null || !response.containsKey("data")) {
+                throw new RuntimeException("Empty or invalid response from OpenAI embeddings");
+            }
+
+            List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
+            Map<String, Object> firstData = data.get(0);
+            List<Double> embedding = (List<Double>) firstData.get("embedding");
+
+            float[] floatArray = new float[embedding.size()];
+            for (int i = 0; i < embedding.size(); i++) {
+                floatArray[i] = embedding.get(i).floatValue();
+            }
+
+            return new PGvector(floatArray);
+
+        } catch (Exception e) {
+            log.error("Error creating OpenAI embedding: {}", e.getMessage());
+            throw new RuntimeException("AI Provider currently unavailable for embeddings (OpenAI)", e);
+        }
     }
 
     private List<Map<String, String>> createMessages(AiChatRequest request) {
