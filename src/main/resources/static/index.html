@@ -1,141 +1,133 @@
-<!doctype html>
-<html lang="de" class="h-full bg-slate-950">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AyntraCore | Chameleon Admin</title>
-
-    <!-- Tailwind CDN (nur Preview) -->
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AyntraCore - Agent Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: { extend: { colors: { primary: 'var(--primary-color)' } } }
-      }
-    </script>
-
     <style>
-      :root {
-        --primary-color: #3B82F6;
-        --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=512&q=80');
-        --glass-bg: 255 255 255 / 0.08;
-        --glass-border: 255 255 255 / 0.18;
-      }
-      .glass { background: rgba(255,255,255,0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.18); border-radius: 1rem; }
-      .avatar { background-image: var(--avatar-url); background-size: cover; background-position: center; }
-      .scroll-shadows { mask-image: linear-gradient(to bottom, transparent, black 20px, black calc(100% - 20px), transparent); }
+        :root {
+            --primary-color: #FFA500; /* Default Orange */
+            --primary-color-translucent: rgba(255, 165, 0, 0.1);
+        }
+        body {
+            background-color: #111827;
+            color: #E5E7EB;
+        }
+        .glass-effect {
+            background: rgba(31, 41, 55, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .primary-glow {
+            box-shadow: 0 0 20px 5px var(--primary-color-translucent);
+        }
+        .dynamic-primary-bg { background-color: var(--primary-color); }
+        .dynamic-primary-text { color: var(--primary-color); }
+        .dynamic-primary-border { border-color: var(--primary-color); }
+        #toast-container {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            z-index: 9999;
+        }
+        .toast-message {
+            background-color: #c53030; /* Red-700 */
+            color: white;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 0.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
     </style>
-  </head>
-  <body class="h-full text-slate-200 selection:bg-primary/30">
-    <div class="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/30 via-slate-900 to-slate-950"></div>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div class="mx-auto max-w-[1400px] p-4 md:p-6">
-      <header class="mb-4 flex items-center justify-between">
-        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight">AyntraCore <span class="text-primary">Chameleon</span> Dashboard</h1>
-        <div class="flex items-center gap-3">
-          <div id="status-company" class="text-xs px-2 py-1 rounded-full glass">Tenant: <span id="companyIdLabel" class="text-primary">—</span></div>
-          <div id="status-hints" class="text-xs px-2 py-1 rounded-full glass">Hints: <span id="hintsLabel">—</span></div>
+    <div id="toast-container"></div>
+
+    <main id="dashboard" class="w-full max-w-4xl glass-effect rounded-2xl shadow-2xl p-8 space-y-6">
+        <header class="border-b border-gray-700 pb-4">
+            <h1 class="text-3xl font-bold">Agent Dashboard</h1>
+            <p class="text-gray-400">Aktive Persona: <span id="persona-name" class="font-semibold dynamic-primary-text">Lade...</span></p>
+        </header>
+        
+        <div class="primary-glow p-6 rounded-lg">
+             <h2 class="text-xl font-semibold mb-4">Interaktion</h2>
+            <textarea id="chat-input" class="w-full h-24 bg-gray-900/80 rounded-md p-3 text-gray-200 border border-gray-600 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] transition" placeholder="Stelle eine Frage an die Persona..."></textarea>
+            <button id="send-btn" class="mt-4 px-6 py-2 font-bold text-white dynamic-primary-bg rounded-lg hover:opacity-90 transition-opacity">Senden</button>
         </div>
-      </header>
-
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <!-- Sidebar -->
-        <aside class="lg:col-span-2 glass p-4">
-          <h2 class="text-sm font-semibold mb-2 text-slate-300">App‑Szenario</h2>
-          <div class="space-y-2">
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition" onclick="selectApp('IHK')">IHK Wissensbot</button>
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition" onclick="selectApp('RPG')">RPG Dungeon Master</button>
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800 transition" onclick="selectApp('Onboarding')">Onboarding Coach</button>
-          </div>
-
-          <div class="mt-6 space-y-4">
-            <div>
-              <label class="text-xs text-slate-400">minSimilarity</label>
-              <input id="minSimilarity" type="range" min="0.5" max="0.95" value="0.7" step="0.01" class="w-full accent-[var(--primary-color)]">
-              <div class="text-xs mt-1"><span id="minSimilarityLabel">0.70</span></div>
-            </div>
-            <div>
-              <label class="text-xs text-slate-400">Model</label>
-              <select id="modelSelect" class="mt-1 w-full rounded-lg bg-slate-900 border border-white/10 px-2 py-2">
-                <option value="openai:gpt-4.1-mini">OpenAI · gpt-4.1‑mini</option>
-                <option value="deepseek:chat">DeepSeek · chat</option>
-                <option value="gemini-2.0-flash">Gemini · 2.0‑flash</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="mt-6">
-            <h3 class="text-sm font-semibold mb-2">Persona</h3>
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 rounded-full ring-2 ring-primary"></div>
-              <div>
-                <div id="personaName" class="text-sm font-medium">—</div>
-                <div id="personaStyle" class="text-xs text-slate-400">—</div>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <!-- Mitte -->
-        <main class="lg:col-span-6 space-y-4">
-          <section class="glass p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-base font-semibold">Persona Live‑Preview</h2>
-                <p class="text-xs text-slate-400">Theme: <span id="themeLabel" class="text-primary">—</span></p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="h-4 w-4 rounded-full bg-primary inline-block"></span>
-                <span class="text-xs text-slate-400">primary</span>
-              </div>
-            </div>
-          </section>
-
-          <section class="glass p-4">
-            <div id="chatStream" class="max-h-[540px] overflow-auto scroll-shadows space-y-3">
-              <div class="animate-pulse space-y-3">
-                <div class="h-5 w-1/3 bg-white/10 rounded"></div>
-                <div class="h-20 w-full bg-white/10 rounded"></div>
-                <div class="h-5 w-1/4 bg-white/10 rounded"></div>
-              </div>
-            </div>
-            <div class="mt-3 flex items-center gap-2">
-              <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2" />
-              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90">Senden</button>
-            </div>
-          </section>
-
-          <section id="rpgGallery" class="hidden glass p-4">
-            <div class="flex items-center justify-between mb-2">
-              <h2 class="text-base font-semibold">RPG Media‑Galerie</h2>
-              <button class="text-xs underline" onclick="refreshRpgGallery()">Refresh</button>
-            </div>
-            <div id="rpgGrid" class="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 auto-rows-[160px]"></div>
-          </section>
-        </main>
-
-        <!-- RAG Insights -->
-        <aside class="lg:col-span-4 glass p-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-base font-semibold">RAG‑Insights</h2>
-            <button class="text-xs underline" onclick="simulateRagUpdate()">Reload</button>
-          </div>
-          <div id="ragSummary" class="mt-3 text-xs text-slate-400">Threshold: <span id="thresholdLabel" class="text-slate-200">0.70</span> · Model: <span id="modelLabel">—</span></div>
-          <div id="ragMatches" class="mt-3 space-y-3"></div>
-        </aside>
-      </div>
-    </div>
-
-    <!-- Modal -->
-    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-      <div class="glass w-[min(90vw,900px)] p-4">
-        <div class="flex items-center justify-between">
-          <h3 id="modalTitle" class="text-base font-semibold">Quelle</h3>
-          <button class="text-sm hover:text-primary" onclick="closeModal()">✕</button>
+        
+        <div id="response-area" class="bg-gray-900/50 p-4 rounded-lg min-h-[100px]">
+            <p class="text-gray-500">Antwort des Agenten wird hier angezeigt...</p>
         </div>
-        <div id="modalBody" class="mt-3 max-h-[60vh] overflow-auto text-sm text-slate-300 whitespace-pre-wrap"></div>
-      </div>
-    </div>
+    </main>
 
-    <script src="./app.js"></script>
-  </body>
+    <script>
+        const PERSONA_UUID = "550e8400-e29b-41d4-a716-446655440000";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPersonaData();
+        });
+
+        async function fetchPersonaData() {
+            try {
+                const response = await fetch('/api/agent/entry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        personaId: PERSONA_UUID,
+                        companyId: PERSONA_UUID, // Assuming companyId is same for this context
+                        message: "Initiale Anfrage zur Synchronisierung"
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API-Fehler: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                applyUiHints(data.uiHints);
+
+            } catch (error) {
+                console.error("Fehler bei der Initialisierung:", error);
+                showToast(error.message);
+                // Fallback-UI-Werte setzen
+                applyUiHints({ primaryColor: '#FFA500', personaName: 'Offline-Modus' });
+            }
+        }
+
+        function applyUiHints(hints) {
+            const primaryColor = hints.primaryColor || '#FFA500';
+            const personaName = hints.personaName || 'Unbekannte Persona';
+
+            document.documentElement.style.setProperty('--primary-color', primaryColor);
+             document.documentElement.style.setProperty('--primary-color-translucent', \`\${primaryColor}1A\`);
+            document.getElementById('persona-name').textContent = personaName;
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast-message';
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            // Fade in
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            }, 100);
+
+            // Fade out after 5 seconds
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+    </script>
+</body>
 </html>

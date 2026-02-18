@@ -3,6 +3,7 @@ package com.ayntracore.adapters.inbound.websocket;
 
 import com.ayntracore.core.ports.TicketUseCase;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.stereotype.Controller;
@@ -15,7 +16,7 @@ import java.util.UUID;
  * Ermöglicht Live-Chat-Funktionalität mit sofortiger KI-Antwort über
  * STOMP-Protokoll. Implementiert Reactive Messaging Pattern.
  * </p>
- * 
+ *
  * @see Inbound-Adapter gemäß hexagonaler Architektur
  * @see Echtzeit-Adapter für Pub/Sub-Kommunikation
  * @author Christian Langner
@@ -32,8 +33,8 @@ public class ChatController {
      */
     private final TicketUseCase ticketUseCase;
 
-    // Wir definieren eine feste Test-ID, bis wir ein Login-System haben
-    private static final UUID TEST_COMPANY_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+    @Value("${ayntra.persona.company-id}")
+    private String companyId;
 
     /**
      * Verarbeitet eingehende WebSocket-Nachrichten über STOMP-Protokoll.
@@ -45,7 +46,6 @@ public class ChatController {
     @MessageMapping("/chat.sendMessage")
     @SendTo("/topic/public")
     public String handleChatMessage(String message) {
-        // ÄNDERUNG: TEST_COMPANY_ID wird jetzt mitgegeben
-        return ticketUseCase.processInquiry(message, TEST_COMPANY_ID);
+        return ticketUseCase.processInquiry(message, UUID.fromString(companyId));
     }
 }

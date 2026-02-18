@@ -1,4 +1,3 @@
-// Autor: Christian Langner
 package com.ayntracore.adapters.outbound.civitai;
 
 import com.ayntracore.core.ports.ImageGenerationPort;
@@ -11,69 +10,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-/**
- * Outbound Adapter für Civitai Bildgenerierungs-API.
- *
- * <p><strong>Architektur-Schicht:</strong> Infrastructure Layer (Outbound Adapter)</p>
- * <p><strong>Hexagonale Architektur:</strong> Implementiert ImageGenerationPort</p>
- *
- * <h2>API-Integration:</h2>
- * <ul>
- *   <li><strong>Provider:</strong> Civitai AI (https://civitai.com/)</li>
- *   <li><strong>Model:</strong> RealVisXL V4.0 (ID: 139562)</li>
- *   <li><strong>Endpoint:</strong> /api/v1/image/generate</li>
- *   <li><strong>Authentication:</strong> Bearer Token via CIVITAI_API_KEY</li>
- * </ul>
- *
- * <h2>Safety-Level Mapping:</h2>
- * <table border="1">
- *   <tr>
- *     <th>Internal SafetyLevel</th>
- *     <th>Civitai nsfw Parameter</th>
- *     <th>Description</th>
- *   </tr>
- *   <tr>
- *     <td>SAFE</td>
- *     <td>false</td>
- *     <td>Komplett sicher, keine Freizügigkeit</td>
- *   </tr>
- *   <tr>
- *     <td>MILD</td>
- *     <td>false</td>
- *     <td>Leichte Freizügigkeit (Bademode)</td>
- *   </tr>
- *   <tr>
- *     <td>MODERATE</td>
- *     <td>true (mit Safety-Prompt)</td>
- *     <td>Moderate Freizügigkeit (Dessous)</td>
- *   </tr>
- *   <tr>
- *     <td>EXPLICIT</td>
- *     <td>true</td>
- *     <td>Explizite Freizügigkeit</td>
- *   </tr>
- *   <tr>
- *     <td>HARDCORE</td>
- *     <td>true</td>
- *     <td>Maximale Freizügigkeit</td>
- *   </tr>
- * </table>
- *
- * <h2>Error Handling:</h2>
- * <ul>
- *   <li><strong>Timeout:</strong> 60 Sekunden (Bildgenerierung dauert 10-30s)</li>
- *   <li><strong>Retry:</strong> Keine automatischen Retries (App-Layer-Entscheidung)</li>
- *   <li><strong>Fallback:</strong> Error-Response mit Fehlermeldung</li>
- * </ul>
- *
- * @author Christian Langner
- * @version 1.0
- * @since 2026
- *
- * @see ImageGenerationPort
- */
 @Component
 @Profile("home")
 @Slf4j
@@ -102,31 +42,37 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
     public ImageGenerationResponse generateImage(ImageGenerationRequest request) {
         log.info("Generating image for company: {}, safetyLevel: {}", request.companyId(), request.safetyLevel());
 
-        // 1. API-Key-Validierung
         if (apiKey == null || apiKey.isBlank() || "__SET_ME__".equals(apiKey)) {
             log.error("Civitai API key not configured");
             return ImageGenerationResponse.error("Civitai API is not configured. Please set CIVITAI_API_KEY.");
         }
 
-        // 2. Safety-Level-Mapping
         boolean nsfwEnabled = mapSafetyLevelToNsfw(request.safetyLevel());
         String enhancedPrompt = enhancePromptForSafety(request.prompt(), request.safetyLevel());
         String enhancedNegativePrompt = enhanceNegativePrompt(request.negativePrompt(), request.safetyLevel());
 
         log.debug("NSFW enabled: {}, Enhanced prompt length: {}", nsfwEnabled, enhancedPrompt.length());
 
-        // 3. Request-Body erstellen
-        Map<String, Object> requestBody = Map.of(
-                "model", request.model() != null ? request.model() : MODEL_ID,
-                "prompt", enhancedPrompt,
-                "negativePrompt", enhancedNegativePrompt,
-                "width", request.width(),
-                "height", request.height(),
-                "steps", request.steps(),
-                "nsfw", nsfwEnabled
-        );
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", request.model() != null ? request.model() : MODEL_ID);
+        requestBody.put("prompt", enhancedPrompt);
+        requestBody.put("negativePrompt", enhancedNegativePrompt);
+        requestBody.put("width", request.width());
+        requestBody.put("height", request.height());
+        requestBody.put("steps", request.steps());
+        requestBody.put("nsfw", nsfwEnabled);
 
-        // 4. API-Aufruf
+        if (request.referenceImageUrl() != null && !request.referenceImageUrl().isBlank()) {
+            log.info("Applying Face-Lock (IP-Adapter) using reference image: {}", request.referenceImageUrl());
+            Map<String, Object> controlNet = Map.of(
+                    "model", "IP-Adapter",
+                    "controlMode", "Balanced",
+                    "imageUrl", request.referenceImageUrl(),
+                    "weight", 0.75
+            );
+            requestBody.put("controlNets", List.of(controlNet));
+        }
+
         try {
             log.debug("Calling Civitai API: POST /api/v1/image/generate");
 
@@ -146,7 +92,6 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
                     })
                     .body(Map.class);
 
-            // 5. Response-Verarbeitung
             if (response == null || !response.containsKey("imageUrl")) {
                 log.warn("Invalid response from Civitai API: missing imageUrl");
                 return ImageGenerationResponse.error("Invalid response from Civitai API");
@@ -182,9 +127,6 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
         }
 
         try {
-            // Health-Check: Einfacher GET auf API-Endpoint
-            // Note: Civitai hat keinen dedizierten /health endpoint
-            // Alternative: Prüfe nur API-Key-Vorhandensein
             return true;
 
         } catch (Exception e) {
@@ -193,12 +135,6 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
         }
     }
 
-    /**
-     * Mappt interne Safety-Levels auf Civitai NSFW-Parameter.
-     *
-     * @param safetyLevel Das interne Safety-Level
-     * @return true, wenn NSFW-Content erlaubt ist
-     */
     private boolean mapSafetyLevelToNsfw(SafetyLevel safetyLevel) {
         return switch (safetyLevel) {
             case SAFE, MILD -> false;
@@ -206,29 +142,15 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
         };
     }
 
-    /**
-     * Erweitert den Prompt basierend auf Safety-Level.
-     *
-     * @param originalPrompt Der Original-Prompt
-     * @param safetyLevel Das Safety-Level
-     * @return Der erweiterte Prompt
-     */
     private String enhancePromptForSafety(String originalPrompt, SafetyLevel safetyLevel) {
         return switch (safetyLevel) {
             case SAFE -> originalPrompt + ", safe for work, professional, appropriate";
             case MILD -> originalPrompt + ", tasteful, elegant, artistic";
             case MODERATE -> originalPrompt + ", artistic, aesthetic";
-            case EXPLICIT, HARDCORE -> originalPrompt; // Keine Einschränkungen
+            case EXPLICIT, HARDCORE -> originalPrompt;
         };
     }
 
-    /**
-     * Erweitert den Negative-Prompt basierend auf Safety-Level.
-     *
-     * @param originalNegativePrompt Der Original-Negative-Prompt
-     * @param safetyLevel Das Safety-Level
-     * @return Der erweiterte Negative-Prompt
-     */
     private String enhanceNegativePrompt(String originalNegativePrompt, SafetyLevel safetyLevel) {
         String baseNegative = originalNegativePrompt != null ? originalNegativePrompt : "";
 
@@ -236,7 +158,7 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
             case SAFE -> baseNegative + ", nsfw, nude, explicit, sexual, inappropriate";
             case MILD -> baseNegative + ", explicit, sexual, inappropriate";
             case MODERATE -> baseNegative + ", extreme, hardcore";
-            case EXPLICIT, HARDCORE -> baseNegative; // Keine zusätzlichen Einschränkungen
+            case EXPLICIT, HARDCORE -> baseNegative;
         };
     }
 }

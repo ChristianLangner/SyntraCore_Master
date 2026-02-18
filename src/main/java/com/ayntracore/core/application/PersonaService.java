@@ -14,35 +14,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Application Service für Persona-Verwaltung und Typ-Wechsel.
- *
- * <p><strong>Architektur-Schicht:</strong> Application Layer (Use Cases)</p>
- * <p><strong>Hexagonale Architektur:</strong> Nutzt Ports, keine direkte DB-Verbindung</p>
- *
- * <h2>Verantwortlichkeiten:</h2>
- * <ul>
- *   <li><strong>Persona-Verwaltung:</strong> Laden, Speichern, Aktualisieren von Personas</li>
- *   <li><strong>Typ-Wechsel:</strong> Wechsel zwischen SUPPORT und COMPANION mit Validierung</li>
- *   <li><strong>Content-Policy:</strong> Verwaltung von allowExplicitContent-Flag</li>
- *   <li><strong>Sicherheit:</strong> Automatische Zurücksetzung bei Typ-Wechsel zu SUPPORT</li>
- * </ul>
- *
- * <h2>Business Rules:</h2>
- * <ul>
- *   <li>SUPPORT-Personas: allowExplicitContent wird automatisch auf false gesetzt</li>
- *   <li>COMPANION-Personas: allowExplicitContent ist konfigurierbar</li>
- *   <li>Typ-Wechsel von COMPANION zu SUPPORT: Automatische Bereinigung der Content-Policy</li>
- * </ul>
- *
- * @author Christian Langner
- * @version 1.0
- * @since 2026
- *
- * @see Persona
- * @see PersonaType
- * @see PersonaOutputPort
- */
 @Service
 @Profile("home")
 @RequiredArgsConstructor
@@ -51,12 +22,6 @@ public class PersonaService {
 
     private final PersonaOutputPort personaOutputPort;
 
-    /**
-     * Loads a persona preset based on the application type.
-     *
-     * @param type The application type (e.g., RPG, IHK_EXPERT).
-     * @return The configured persona.
-     */
     public Persona loadAppPreset(AppType type) {
         return switch (type) {
             case RPG -> createRpgPreset();
@@ -66,62 +31,39 @@ public class PersonaService {
     }
 
     private Persona createRpgPreset() {
-        Persona persona = new Persona();
-        persona.setPersonaType(PersonaType.COMPANION);
-        persona.setSpeakingStyle("emotional");
-        persona.setTraits(Map.of("imageGeneration", "true"));
-        return persona;
+        return Persona.builder()
+                .personaType(PersonaType.COMPANION)
+                .speakingStyle("emotional")
+                .traits(Map.of("imageGeneration", "true"))
+                .build();
     }
 
     private Persona createIhkExpertPreset() {
-        Persona persona = new Persona();
-        persona.setPersonaType(PersonaType.SUPPORT);
-        persona.setSpeakingStyle("professional");
-        persona.setSystemPrompt("Focus on architecture and technical accuracy.");
-        return persona;
+        return Persona.builder()
+                .personaType(PersonaType.SUPPORT)
+                .speakingStyle("professional")
+                .systemPrompt("Focus on architecture and technical accuracy.")
+                .build();
     }
 
     private Persona createDevOnboardingPreset() {
-        Persona persona = new Persona();
-        persona.setPersonaType(PersonaType.SUPPORT);
-        persona.setSpeakingStyle("supportive");
-        persona.setSystemPrompt("Assist new developers with codebase and processes.");
-        return persona;
+        return Persona.builder()
+                .personaType(PersonaType.SUPPORT)
+                .speakingStyle("supportive")
+                .systemPrompt("Assist new developers with codebase and processes.")
+                .build();
     }
 
-
-    /**
-     * Lädt die aktive Persona für eine Company.
-     *
-     * @param companyId Die Company-ID
-     * @return Optional mit Persona, falls vorhanden
-     */
     public Optional<Persona> getActivePersona(UUID companyId) {
         log.debug("Loading active persona for company: {}", companyId);
         return personaOutputPort.findActiveByCompanyId(companyId);
     }
 
-    /**
-     * Lädt eine Persona anhand ihrer ID.
-     *
-     * @param personaId Die Persona-ID
-     * @return Optional mit Persona, falls vorhanden
-     */
     public Optional<Persona> getPersonaById(UUID personaId) {
         log.debug("Loading persona by id: {}", personaId);
         return personaOutputPort.findById(personaId);
     }
 
-    /**
-     * Erstellt eine neue Persona für eine Company.
-     *
-     * @param companyId Die Company-ID
-     * @param name Der Name der Persona
-     * @param personaType Der Typ (SUPPORT oder COMPANION)
-     * @param systemPrompt Der System-Prompt
-     * @param speakingStyle Der Sprachstil
-     * @return Die erstellte Persona
-     */
     public Persona createPersona(
             UUID companyId,
             String name,
@@ -131,9 +73,17 @@ public class PersonaService {
     ) {
         log.info("Creating new persona '{}' of type {} for company: {}", name, personaType, companyId);
 
-        Persona persona = new Persona(companyId, name, personaType, systemPrompt, speakingStyle);
+        Persona persona = Persona.builder()
+                .id(UUID.randomUUID())
+                .companyId(companyId)
+                .name(name)
+                .personaType(personaType)
+                .systemPrompt(systemPrompt)
+                .speakingStyle(speakingStyle)
+                .active(true)
+                .traits(Map.of("primaryColor", "#FFA500")) // Add orange branding trait
+                .build();
 
-        // Business Rule: SUPPORT-Personas dürfen keinen expliziten Content generieren
         if (personaType == PersonaType.SUPPORT) {
             persona.setAllowExplicitContent(false);
         }
@@ -141,20 +91,6 @@ public class PersonaService {
         return personaOutputPort.save(persona);
     }
 
-    /**
-     * Wechselt den Typ einer Persona zwischen SUPPORT und COMPANION.
-     *
-     * <p><strong>Business Rules:</strong></p>
-     * <ul>
-     *   <li>Bei Wechsel zu SUPPORT: allowExplicitContent wird automatisch auf false gesetzt</li>
-     *   <li>Bei Wechsel zu COMPANION: allowExplicitContent bleibt false (muss explizit aktiviert werden)</li>
-     * </ul>
-     *
-     * @param personaId Die ID der Persona
-     * @param newType Der neue Typ
-     * @return Die aktualisierte Persona
-     * @throws IllegalArgumentException wenn Persona nicht gefunden
-     */
     public Persona switchPersonaType(UUID personaId, PersonaType newType) {
         log.info("Switching persona {} to type: {}", personaId, newType);
 
@@ -170,13 +106,11 @@ public class PersonaService {
 
         persona.setPersonaType(newType);
 
-        // Business Rule: Bei Wechsel zu SUPPORT immer expliziten Content deaktivieren
         if (newType == PersonaType.SUPPORT) {
             log.info("Switching to SUPPORT mode - disabling explicit content");
             persona.setAllowExplicitContent(false);
         }
 
-        // Bei Wechsel von SUPPORT zu COMPANION: Sicherheitshalber auch deaktivieren
         if (oldType == PersonaType.SUPPORT && newType == PersonaType.COMPANION) {
             log.info("Switching from SUPPORT to COMPANION - keeping explicit content disabled (must be enabled manually)");
             persona.setAllowExplicitContent(false);
@@ -185,24 +119,12 @@ public class PersonaService {
         return personaOutputPort.save(persona);
     }
 
-    /**
-     * Aktualisiert die Content-Policy einer Persona.
-     *
-     * <p><strong>Business Rule:</strong> Nur COMPANION-Personas dürfen expliziten Content aktivieren</p>
-     *
-     * @param personaId Die ID der Persona
-     * @param allowExplicitContent Ob expliziter Content erlaubt ist
-     * @return Die aktualisierte Persona
-     * @throws IllegalArgumentException wenn Persona nicht gefunden
-     * @throws IllegalStateException wenn SUPPORT-Persona expliziten Content aktivieren soll
-     */
     public Persona updateContentPolicy(UUID personaId, boolean allowExplicitContent) {
         log.info("Updating content policy for persona {}: allowExplicitContent={}", personaId, allowExplicitContent);
 
         Persona persona = personaOutputPort.findById(personaId)
                 .orElseThrow(() -> new IllegalArgumentException("Persona not found: " + personaId));
 
-        // Business Rule: SUPPORT-Personas dürfen niemals expliziten Content generieren
         if (persona.getPersonaType() == PersonaType.SUPPORT && allowExplicitContent) {
             throw new IllegalStateException(
                     "Cannot enable explicit content for SUPPORT persona. Switch to COMPANION type first."
@@ -214,17 +136,6 @@ public class PersonaService {
         return personaOutputPort.save(persona);
     }
 
-    /**
-     * Aktualisiert die Prompt-Konfiguration einer Persona.
-     *
-     * @param personaId Die ID der Persona
-     * @param systemPrompt Der neue System-Prompt (optional)
-     * @param speakingStyle Der neue Sprachstil (optional)
-     * @param promptTemplate Das neue Prompt-Template (optional)
-     * @param exampleDialog Der neue Beispiel-Dialog (optional)
-     * @return Die aktualisierte Persona
-     * @throws IllegalArgumentException wenn Persona nicht gefunden
-     */
     public Persona updatePromptConfiguration(
             UUID personaId,
             String systemPrompt,
@@ -252,31 +163,17 @@ public class PersonaService {
         if (exampleDialog != null && !exampleDialog.isBlank()) {
             persona.setExampleDialog(exampleDialog);
         } else if (exampleDialog != null) {
-            // Explicit null/empty string -> clear example dialog
             persona.setExampleDialog(null);
         }
 
         return personaOutputPort.save(persona);
     }
 
-    /**
-     * Löscht eine Persona.
-     *
-     * @param personaId Die ID der zu löschenden Persona
-     * @return true, wenn erfolgreich gelöscht
-     */
     public boolean deletePersona(UUID personaId) {
         log.info("Deleting persona: {}", personaId);
         return personaOutputPort.deleteById(personaId);
     }
 
-    /**
-     * Prüft, ob eine Persona expliziten Content generieren darf.
-     *
-     * @param personaId Die ID der Persona
-     * @return true, wenn expliziter Content erlaubt ist
-     * @throws IllegalArgumentException wenn Persona nicht gefunden
-     */
     public boolean canGenerateExplicitContent(UUID personaId) {
         Persona persona = personaOutputPort.findById(personaId)
                 .orElseThrow(() -> new IllegalArgumentException("Persona not found: " + personaId));

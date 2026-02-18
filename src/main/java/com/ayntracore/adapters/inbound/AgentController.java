@@ -1,8 +1,10 @@
 package com.ayntracore.adapters.inbound;
 
 import com.ayntracore.adapters.inbound.dto.*;
+import com.ayntracore.core.application.ImageGenerationService;
 import com.ayntracore.core.application.RAGCoordinationService;
 import com.ayntracore.core.domain.Persona;
+import com.ayntracore.core.ports.ImageGenerationPort;
 import com.ayntracore.core.ports.PersonaRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +22,7 @@ import java.util.stream.Collectors;
 public class AgentController {
 
     private final RAGCoordinationService ragService;
+    private final ImageGenerationService imageGenerationService;
     private final PersonaRepositoryPort personaRepository;
     private static final double MIN_SIMILARITY_THRESHOLD = 0.70;
 
@@ -37,8 +40,7 @@ public class AgentController {
             case "text":
                 return handleTextMode(request, companyId);
             case "image":
-                // Placeholder for Face-Lock logic
-                return ResponseEntity.ok().body("Image mode not yet implemented.");
+                return handleImageMode(request, companyId);
             default:
                 return ResponseEntity.badRequest().body("Invalid mode.");
         }
@@ -80,6 +82,34 @@ public class AgentController {
                 .shortAnswer(ragResponse.llmResponse())
                 .longAnswer(null) // Not yet implemented
                 .sources(sources)
+                .uiHints(uiHints)
+                .build();
+
+        return ResponseEntity.ok(agentResponse);
+    }
+
+    private ResponseEntity<AgentResponse> handleImageMode(AgentRequest request, UUID companyId) {
+        Persona persona = personaRepository.findActiveByCompanyId(companyId)
+                .orElseThrow(() -> new IllegalArgumentException("No active persona for this company"));
+
+        ImageGenerationPort.ImageGenerationResponse imageResponse = imageGenerationService.generateImageAdvanced(
+                request.getQuery(),
+                persona,
+                "low quality, blurry, distorted", // negative prompt
+                512, // width
+                512, // height
+                30, // steps
+                persona.getTraits().get("modelId")
+        );
+
+        UiHints uiHints = UiHints.builder()
+                .primaryColor(persona.getTraits().get("primaryColor"))
+                .theme(persona.getTraits().get("theme"))
+                .personaName(persona.getName())
+                .build();
+
+        AgentResponse agentResponse = AgentResponse.builder()
+                .imageUrl(imageResponse.imageUrl())
                 .uiHints(uiHints)
                 .build();
 
