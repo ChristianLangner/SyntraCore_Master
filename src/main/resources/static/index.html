@@ -1,70 +1,77 @@
-<!DOCTYPE html>
-<html lang="de" class="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AyntraCore - Agent Interface</title>
+
+<!doctype html>
+<html lang="de" class="h-full bg-slate-950">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ayntra Executive Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { theme: { extend: { colors: { primary: 'var(--primary-color)' } } } }</script>
     <style>
-        :root {
-            --primary-color: #FFA500; /* Default Orange */
-            --primary-color-translucent: rgba(255, 165, 0, 0.1);
-        }
-        body {
-            background-color: #111827;
-            color: #E5E7EB;
-        }
-        .glass-effect {
-            background: rgba(31, 41, 55, 0.6);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        .primary-glow {
-            box-shadow: 0 0 20px 5px var(--primary-color-translucent);
-        }
-        .dynamic-primary-bg { background-color: var(--primary-color); }
-        .dynamic-primary-text { color: var(--primary-color); }
-        .dynamic-primary-border { border-color: var(--primary-color); }
-        #toast-container {
-            position: fixed;
-            bottom: 1rem;
-            right: 1rem;
-            z-index: 9999;
-        }
-        .toast-message {
-            background-color: #c53030; /* Red-700 */
-            color: white;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-top: 0.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
+      :root { 
+        --primary-color:#3B82F6; 
+        --primary-color-translucent: #3B82F61A;
+        --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=256&q=80'); 
+      }
+      .glass{background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:1rem}
+      .avatar{background-image:var(--avatar-url);background-size:cover;background-position:center}
+      #toast-container {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        z-index: 100;
+      }
+      .toast-message {
+        background-color: #ff4d4d;
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
     </style>
-</head>
-<body class="min-h-screen flex items-center justify-center p-4">
-
+  </head>
+  <body class="h-full text-slate-200 selection:bg-primary/30">
     <div id="toast-container"></div>
-
-    <main id="dashboard" class="w-full max-w-4xl glass-effect rounded-2xl shadow-2xl p-8 space-y-6">
-        <header class="border-b border-gray-700 pb-4">
-            <h1 class="text-3xl font-bold">Agent Dashboard</h1>
-            <p class="text-gray-400">Aktive Persona: <span id="persona-name" class="font-semibold dynamic-primary-text">Lade...</span></p>
-        </header>
-        
-        <div class="primary-glow p-6 rounded-lg">
-             <h2 class="text-xl font-semibold mb-4">Interaktion</h2>
-            <textarea id="chat-input" class="w-full h-24 bg-gray-900/80 rounded-md p-3 text-gray-200 border border-gray-600 focus:ring-2 focus:ring-[var(--primary-color)] focus:border-[var(--primary-color)] transition" placeholder="Stelle eine Frage an die Persona..."></textarea>
-            <button id="send-btn" class="mt-4 px-6 py-2 font-bold text-white dynamic-primary-bg rounded-lg hover:opacity-90 transition-opacity">Senden</button>
+    <div class="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/30 via-slate-900 to-slate-950"></div>
+    <div class="mx-auto max-w-[1400px] p-4 md:p-6">
+      <header class="mb-4 flex items-center justify-between">
+        <h1 class="text-2xl md:text-3xl font-semibold">AyntraCore <span id="persona-name" class="text-primary">Chameleon</span> Dashboard</h1>
+      </header>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <main class="lg:col-span-8 space-y-4">
+          <section class="glass p-4">
+            <div id="chatStream" class="max-h-[540px] overflow-auto space-y-3">
+            </div>
+            <div class="mt-3 flex items-center gap-2">
+              <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2" />
+              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90">Senden</button>
+            </div>
+          </section>
+        </main>
+        <aside class="lg:col-span-4 glass p-4">
+          <div class="flex items-center justify-between">
+            <h2 class="text-base font-semibold">RAG‑Insights</h2>
+          </div>
+          <div id="ragSummary" class="mt-3 text-xs text-slate-400"></div>
+          <div id="ragMatches" class="mt-3 space-y-3"></div>
+        </aside>
+      </div>
+    </div>
+    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
+      <div class="glass w-[min(90vw,900px)] p-4">
+        <div class="flex items-center justify-between">
+          <h3 id="modalTitle" class="text-base font-semibold">Quelle</h3>
+          <button class="text-sm hover:text-primary" onclick="closeModal()">✕</button>
         </div>
-        
-        <div id="response-area" class="bg-gray-900/50 p-4 rounded-lg min-h-[100px]">
-            <p class="text-gray-500">Antwort des Agenten wird hier angezeigt...</p>
-        </div>
-    </main>
-
+        <div id="modalBody" class="mt-3 max-h-[60vh] overflow-auto text-sm text-slate-300 whitespace-pre-wrap"></div>
+      </div>
+    </div>
     <script>
         const PERSONA_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
@@ -78,9 +85,9 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        personaId: PERSONA_UUID,
-                        companyId: PERSONA_UUID, // Assuming companyId is same for this context
-                        message: "Initiale Anfrage zur Synchronisierung"
+                        companyId: PERSONA_UUID,
+                        message: "Ayntra Initialization",
+                        mode: "INITIALIZATION" // Frontend-Fix
                     })
                 });
                 
@@ -89,22 +96,22 @@
                 }
 
                 const data = await response.json();
+                console.table(data);
                 applyUiHints(data.uiHints);
 
             } catch (error) {
                 console.error("Fehler bei der Initialisierung:", error);
                 showToast(error.message);
-                // Fallback-UI-Werte setzen
-                applyUiHints({ primaryColor: '#FFA500', personaName: 'Offline-Modus' });
+                applyUiHints({ primaryColor: '#FFA500', personaName: 'Ayntra (Offline)' });
             }
         }
 
         function applyUiHints(hints) {
             const primaryColor = hints.primaryColor || '#FFA500';
-            const personaName = hints.personaName || 'Unbekannte Persona';
+            const personaName = hints.personaName || 'Ayntra Executive';
 
             document.documentElement.style.setProperty('--primary-color', primaryColor);
-             document.documentElement.style.setProperty('--primary-color-translucent', \`\${primaryColor}1A\`);
+            document.documentElement.style.setProperty('--primary-color-translucent', `${primaryColor}1A`);
             document.getElementById('persona-name').textContent = personaName;
         }
 
@@ -115,13 +122,11 @@
             toast.textContent = message;
             container.appendChild(toast);
             
-            // Fade in
             setTimeout(() => {
                 toast.style.opacity = '1';
                 toast.style.transform = 'translateY(0)';
             }, 100);
 
-            // Fade out after 5 seconds
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(20px)';
@@ -129,5 +134,5 @@
             }, 5000);
         }
     </script>
-</body>
+  </body>
 </html>

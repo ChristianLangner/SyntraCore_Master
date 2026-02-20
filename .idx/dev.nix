@@ -2,22 +2,24 @@
   channel = "stable-24.05";
 
   packages = [
-    pkgs.jdk21    # Zwingend erforderlich für AyntraCore
-    pkgs.maven    # Behebt deinen aktuellen Fehler im Terminal
+    pkgs.jdk21
+    pkgs.maven
   ];
 
   idx = {
     extensions = [
       "vscjava.vscode-java-pack"
-      "vscjava.vscode-lombok" # Wichtig, um die 'cannot find symbol' Fehler bei @Builder zu lösen
+      "vscjava.vscode-lombok"
     ];
 
     previews = {
-      enable = true;
+      enable = false;
       previews = {
         web = {
-          command = ["mvn" "spring-boot:run"];
+          command = [ "mvn" "spring-boot:run" "-Dspring.profiles.active=home" ];
           manager = "web";
+          port = 8080;
+          visibility = "public";
           env = {
             PORT = "$PORT";
           };

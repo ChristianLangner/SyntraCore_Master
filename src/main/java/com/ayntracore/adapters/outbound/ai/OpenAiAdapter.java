@@ -20,32 +20,33 @@ import java.util.Map;
 import java.util.concurrent.Flow;
 import java.util.concurrent.SubmissionPublisher;
 
-/**
- * Konkreter Outbound-Adapter für die OpenAI API.
- * Nutzt Spring RestClient für die Kommunikation.
- */
 @Slf4j
 @Component
 public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
 
     private final RestClient restClient;
+    private final String apiKey;
     private final String model;
     private final String embeddingModel;
 
-    public OpenAiAdapter(@Value("${ayntracore.ai.openai.api-key:}") String apiKey,
-                         @Value("${ayntracore.ai.openai.model:gpt-4o}") String model,
+    public OpenAiAdapter(@Value("${openrouter.api.key}") String apiKey,
+                         @Value("${openrouter.api.url}") String baseUrl,
+                         @Value("${ayntracore.ai.openai.model:openai/gpt-3.5-turbo}") String model,
                          @Value("${ayntracore.ai.openai.embedding-model:text-embedding-ada-002}") String embeddingModel) {
+        this.apiKey = apiKey;
         this.restClient = RestClient.builder()
-                .baseUrl("https://api.openai.com/v1")
+                .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
+                .defaultHeader("HTTP-Referer", "http://localhost:8080")
                 .build();
         this.model = model;
         this.embeddingModel = embeddingModel;
+        log.info("OpenRouter API connected");
     }
 
     @Override
     public AiResponse generateResponse(AiChatRequest request) {
-        log.info("Generating OpenAI response for model: {}", request.model() != null ? request.model() : model);
+        log.info("Generating OpenRouter response for model: {}", request.model() != null ? request.model() : model);
 
         try {
             Map<String, Object> body = Map.of(
@@ -62,7 +63,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
                     .body(Map.class);
 
             if (response == null || !response.containsKey("choices")) {
-                throw new RuntimeException("Empty or invalid response from OpenAI");
+                throw new RuntimeException("Empty or invalid response from OpenRouter");
             }
 
             List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
@@ -75,7 +76,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
             long completionTokens = ((Number) usage.get("completion_tokens")).longValue();
             long totalTokens = ((Number) usage.get("total_tokens")).longValue();
 
-            log.info("OpenAI usage: {} prompt, {} completion, {} total tokens", promptTokens, completionTokens, totalTokens);
+            log.info("OpenRouter usage: {} prompt, {} completion, {} total tokens", promptTokens, completionTokens, totalTokens);
 
             AiResponseMetadata metadata = new AiResponseMetadata(
                     (String) response.get("model"),
@@ -89,21 +90,20 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
             return new AiResponse(content, metadata);
 
         } catch (Exception e) {
-            log.error("Error calling OpenAI API: {}", e.getMessage());
-            throw new RuntimeException("AI Provider currently unavailable (OpenAI)", e);
+            log.error("Error calling OpenRouter API: {}", e.getMessage());
+            throw new RuntimeException("AI Provider currently unavailable (OpenRouter)", e);
         }
     }
 
     @Override
     public Flow.Publisher<AiResponse> generateStreamingResponse(AiChatRequest request) {
-        log.warn("Streaming not fully implemented for OpenAiAdapter. Falling back to sync.");
+        log.warn("Streaming not fully implemented for OpenRouter. Falling back to sync.");
         SubmissionPublisher<AiResponse> publisher = new SubmissionPublisher<>();
         new Thread(() -> {
             try {
                 AiResponse response = generateResponse(request);
                 publisher.submit(response);
             } catch (Exception e) {
-                // Flow.Subscriber.onError(Throwable) wird intern aufgerufen
                 publisher.closeExceptionally(e);
             } finally {
                 publisher.close();
@@ -114,7 +114,12 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
 
     @Override
     public PGvector createEmbedding(String text) {
-        log.info("Creating OpenAI embedding for model: {}", embeddingModel);
+        log.info("Creating OpenRouter embedding for model: {}", embeddingModel);
+        
+        if (apiKey == null || apiKey.isBlank()) {
+            log.warn("[CRITICAL] API key is not configured. Returning empty vector. This will cause downstream errors.");
+            return new PGvector(new float[0]);
+        }
 
         try {
             Map<String, Object> body = Map.of(
@@ -128,9 +133,9 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
                     .body(body)
                     .retrieve()
                     .body(Map.class);
-            
+
             if (response == null || !response.containsKey("data")) {
-                throw new RuntimeException("Empty or invalid response from OpenAI embeddings");
+                throw new RuntimeException("Empty or invalid response from OpenRouter embeddings");
             }
 
             List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
@@ -145,8 +150,8 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
             return new PGvector(floatArray);
 
         } catch (Exception e) {
-            log.error("Error creating OpenAI embedding: {}", e.getMessage());
-            throw new RuntimeException("AI Provider currently unavailable for embeddings (OpenAI)", e);
+            log.error("Error creating OpenRouter embedding: {}", e.getMessage());
+            throw new RuntimeException("AI Provider currently unavailable for embeddings (OpenRouter)", e);
         }
     }
 

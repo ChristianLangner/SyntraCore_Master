@@ -8,95 +8,57 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { theme: { extend: { colors: { primary: 'var(--primary-color)' } } } }</script>
     <style>
-      :root { --primary-color:#3B82F6; --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=256&q=80'); }
+      :root { 
+        --primary-color:#3B82F6; 
+        --primary-color-translucent: #3B82F61A;
+        --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=256&q=80'); 
+      }
       .glass{background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:1rem}
       .avatar{background-image:var(--avatar-url);background-size:cover;background-position:center}
+      #toast-container {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        z-index: 100;
+      }
+      .toast-message {
+        background-color: #ff4d4d;
+        color: white;
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
     </style>
   </head>
   <body class="h-full text-slate-200 selection:bg-primary/30">
+    <div id="toast-container"></div>
     <div class="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/30 via-slate-900 to-slate-950"></div>
     <div class="mx-auto max-w-[1400px] p-4 md:p-6">
       <header class="mb-4 flex items-center justify-between">
-        <h1 class="text-2xl md:text-3xl font-semibold">AyntraCore <span class="text-primary">Chameleon</span> Dashboard</h1>
-        <div class="flex items-center gap-3">
-          <div class="text-xs px-2 py-1 rounded-full glass">Tenant: <span id="companyIdLabel" class="text-primary">—</span></div>
-          <div class="text-xs px-2 py-1 rounded-full glass">Hints: <span id="hintsLabel">—</span></div>
-        </div>
+        <h1 class="text-2xl md:text-3xl font-semibold">AyntraCore <span id="persona-name" class="text-primary">Chameleon</span> Dashboard</h1>
       </header>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <aside class="lg:col-span-2 glass p-4">
-          <h2 class="text-sm font-semibold mb-2 text-slate-300">App‑Szenario</h2>
-          <div class="space-y-2">
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800" onclick="selectApp('IHK')">IHK Wissensbot</button>
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800" onclick="selectApp('RPG')">RPG Dungeon Master</button>
-            <button class="w-full px-3 py-2 rounded-lg bg-slate-800/60 hover:bg-slate-800" onclick="selectApp('Onboarding')">Onboarding Coach</button>
-          </div>
-          <div class="mt-6 space-y-4">
-            <div>
-              <label class="text-xs text-slate-400">minSimilarity</label>
-              <input id="minSimilarity" type="range" min="0.5" max="0.95" value="0.7" step="0.01" class="w-full accent-[var(--primary-color)]">
-              <div class="text-xs mt-1"><span id="minSimilarityLabel">0.70</span></div>
-            </div>
-            <div>
-              <label class="text-xs text-slate-400">Model</label>
-              <select id="modelSelect" class="mt-1 w-full rounded-lg bg-slate-900 border border-white/10 px-2 py-2">
-                <option value="openai:gpt-4.1-mini">OpenAI · gpt-4.1‑mini</option>
-                <option value="deepseek:chat">DeepSeek · chat</option>
-                <option value="gemini-2.0-flash">Gemini · 2.0‑flash</option>
-              </select>
-            </div>
-          </div>
-          <div class="mt-6">
-            <h3 class="text-sm font-semibold mb-2">Persona</h3>
-            <div class="flex items-center gap-3">
-              <div class="avatar h-12 w-12 rounded-full ring-2 ring-primary"></div>
-              <div>
-                <div id="personaName" class="text-sm font-medium">—</div>
-                <div id="personaStyle" class="text-xs text-slate-400">—</div>
-              </div>
-            </div>
-          </div>
-        </aside>
-        <main class="lg:col-span-6 space-y-4">
-          <section class="glass p-4">
-            <div class="flex items-center justify-between">
-              <div>
-                <h2 class="text-base font-semibold">Persona Live‑Preview</h2>
-                <p class="text-xs text-slate-400">Theme: <span id="themeLabel" class="text-primary">—</span></p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="h-4 w-4 rounded-full bg-primary inline-block"></span>
-                <span class="text-xs text-slate-400">primary</span>
-              </div>
-            </div>
-          </section>
+        <main class="lg:col-span-8 space-y-4">
           <section class="glass p-4">
             <div id="chatStream" class="max-h-[540px] overflow-auto space-y-3">
-              <div class="animate-pulse space-y-3">
-                <div class="h-5 w-1/3 bg-white/10 rounded"></div>
-                <div class="h-20 w-full bg-white/10 rounded"></div>
-                <div class="h-5 w-1/4 bg-white/10 rounded"></div>
-              </div>
             </div>
             <div class="mt-3 flex items-center gap-2">
               <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2" />
               <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90">Senden</button>
             </div>
           </section>
-          <section id="rpgGallery" class="hidden glass p-4">
-            <div class="flex items-center justify-between mb-2">
-              <h2 class="text-base font-semibold">RPG Media‑Galerie</h2>
-              <button class="text-xs underline" onclick="refreshRpgGallery()">Refresh</button>
-            </div>
-            <div id="rpgGrid" class="grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 auto-rows-[160px]"></div>
-          </section>
         </main>
         <aside class="lg:col-span-4 glass p-4">
           <div class="flex items-center justify-between">
             <h2 class="text-base font-semibold">RAG‑Insights</h2>
-            <button class="text-xs underline" onclick="simulateRagUpdate()">Reload</button>
           </div>
-          <div id="ragSummary" class="mt-3 text-xs text-slate-400">Threshold: <span id="thresholdLabel" class="text-slate-200">0.70</span> · Model: <span id="modelLabel">—</span></div>
+          <div id="ragSummary" class="mt-3 text-xs text-slate-400"></div>
           <div id="ragMatches" class="mt-3 space-y-3"></div>
         </aside>
       </div>
@@ -110,6 +72,66 @@
         <div id="modalBody" class="mt-3 max-h-[60vh] overflow-auto text-sm text-slate-300 whitespace-pre-wrap"></div>
       </div>
     </div>
-    <script src="./app.js"></script>
+    <script>
+        const PERSONA_UUID = "550e8400-e29b-41d4-a716-446655440000";
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchPersonaData();
+        });
+
+        async function fetchPersonaData() {
+            try {
+                const response = await fetch('/api/agent/entry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        personaId: PERSONA_UUID,
+                        companyId: PERSONA_UUID,
+                        message: "Ayntra Initialization"
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API-Fehler: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                applyUiHints(data.uiHints);
+
+            } catch (error) {
+                console.error("Fehler bei der Initialisierung:", error);
+                showToast(error.message);
+                applyUiHints({ primaryColor: '#FFA500', personaName: 'Ayntra (Offline)' });
+            }
+        }
+
+        function applyUiHints(hints) {
+            const primaryColor = hints.primaryColor || '#FFA500';
+            const personaName = hints.personaName || 'Ayntra Executive';
+
+            document.documentElement.style.setProperty('--primary-color', primaryColor);
+            document.documentElement.style.setProperty('--primary-color-translucent', `${primaryColor}1A`);
+            document.getElementById('persona-name').textContent = personaName;
+        }
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast-message';
+            toast.textContent = message;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.opacity = '1';
+                toast.style.transform = 'translateY(0)';
+            }, 100);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(20px)';
+                setTimeout(() => toast.remove(), 300);
+            }, 5000);
+        }
+    </script>
   </body>
 </html>

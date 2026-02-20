@@ -11,8 +11,8 @@ public class AgentRequest {
     private String companyId;
     private String mode;
 
-    // Field for RAG (mode = "text")
-    private String query;
+    // Renamed from 'query' to align with frontend
+    private String message;
 
     // Fields for Knowledge Entry creation (e.g., mode = "knowledge")
     private String category;

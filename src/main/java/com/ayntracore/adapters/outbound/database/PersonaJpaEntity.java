@@ -36,6 +36,9 @@ public class PersonaJpaEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column
+    private String role;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "persona_type", nullable = false)
     private PersonaType personaType;

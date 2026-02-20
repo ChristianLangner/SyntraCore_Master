@@ -49,9 +49,9 @@ public class AyntraCoreApplication {
             if (personaRepository.findActiveByCompanyId(companyId).isEmpty()) {
                 Persona testPersona = new Persona();
                 testPersona.setCompanyId(companyId);
-                testPersona.setName("Test Persona");
+                testPersona.setName("Ayntra Wissensbot");
                 testPersona.setTraits(Map.of(
-                        "primaryColor", "#ff5733",
+                        "primaryColor", "#0EA5E9",
                         "theme", "dark",
                         "referenceImageUrl", "https://i.imgur.com/8NTRb12.png",
                         "modelId", "RealVisXL_V4.0",
