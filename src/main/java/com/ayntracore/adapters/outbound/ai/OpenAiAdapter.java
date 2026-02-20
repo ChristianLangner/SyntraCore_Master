@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,8 +32,8 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
 
     public OpenAiAdapter(@Value("${openrouter.api.key}") String apiKey,
                          @Value("${openrouter.api.url}") String baseUrl,
-                         @Value("${ayntracore.ai.openai.model:openai/gpt-3.5-turbo}") String model,
-                         @Value("${ayntracore.ai.openai.embedding-model:text-embedding-ada-002}") String embeddingModel) {
+                         @Value("${ai.model.chat}") String model,
+                         @Value("${ai.model.embedding}") String embeddingModel) {
         this.apiKey = apiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -149,9 +150,14 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
 
             return new PGvector(floatArray);
 
-        } catch (Exception e) {
+        } catch (HttpClientErrorException e) {
             log.error("Error creating OpenRouter embedding: {}", e.getMessage());
-            throw new RuntimeException("AI Provider currently unavailable for embeddings (OpenRouter)", e);
+            log.warn("Astra will answer without vector search.");
+            return new PGvector(new float[0]);
+        } catch (Exception e) {
+            log.error("An unexpected error occurred during embedding: {}", e.getMessage());
+            log.warn("Returning empty vector.");
+            return new PGvector(new float[0]);
         }
     }
 

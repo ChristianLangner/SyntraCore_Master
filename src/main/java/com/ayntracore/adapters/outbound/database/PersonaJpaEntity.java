@@ -27,7 +27,6 @@ import java.util.UUID;
 public class PersonaJpaEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
     private UUID id;
 
     @Column(name = "company_id", nullable = false)
