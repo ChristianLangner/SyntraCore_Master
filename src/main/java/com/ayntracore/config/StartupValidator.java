@@ -16,7 +16,7 @@ public class StartupValidator implements CommandLineRunner {
 
     private final DataSource dataSource;
 
-    @Value("${openrouter.api.key}")
+    @Value("${ai.openrouter.key}")
     private String openAiApiKey;
 
     @Value("${ayntra.persona.company-id}")
@@ -41,7 +41,7 @@ public class StartupValidator implements CommandLineRunner {
         if (openAiApiKey != null && !openAiApiKey.isBlank()) {
             log.info("[AI-CHECK] OK");
         } else {
-            log.error("[AI-CHECK] FAILED - 'openrouter.api.key' is not loaded.");
+            log.error("[AI-CHECK] FAILED - 'ai.openrouter.key' is not loaded.");
         }
 
         // 3. Config Check

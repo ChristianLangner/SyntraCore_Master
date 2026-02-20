@@ -27,9 +27,8 @@ public class VectorSearchAdapter implements VectorSearchPort {
     private final RowMapper<KnowledgeEntry> knowledgeRowMapper = (rs, rowNum) -> KnowledgeEntry.builder()
             .id(rs.getObject("id", UUID.class))
             .companyId(rs.getObject("company_id", UUID.class))
-            .category(rs.getString("category"))
             .content(rs.getString("content"))
-            .source(rs.getString("source"))
+            .source(rs.getString("source_id"))
             .embedding(rs.getObject("embedding", PGvector.class) != null ? rs.getObject("embedding", PGvector.class).toArray() : null)
             .build();
 
@@ -62,7 +61,7 @@ public class VectorSearchAdapter implements VectorSearchPort {
     @Override
     public List<KnowledgeEntry> findSimilarContextByEmbedding(float[] embedding, UUID companyId, int limit) {
         final String sql = """
-            SELECT id, company_id, category, content, source, embedding
+            SELECT id, company_id, content, source_id, embedding
             FROM knowledge_entry
             WHERE company_id = ?
             ORDER BY embedding <=> ?
@@ -78,7 +77,7 @@ public class VectorSearchAdapter implements VectorSearchPort {
         long endEmbedding = System.currentTimeMillis();
 
         final String sql = """
-            SELECT id, company_id, category, content, source, embedding, 1 - (embedding <=> ?) AS similarity
+            SELECT id, company_id, content, source_id, embedding, 1 - (embedding <=> ?) AS similarity
             FROM knowledge_entry
             WHERE company_id = ? AND 1 - (embedding <=> ?) > ?
             ORDER BY similarity DESC
@@ -105,13 +104,12 @@ public class VectorSearchAdapter implements VectorSearchPort {
             embeddingLatency = System.currentTimeMillis() - startEmbedding;
         }
 
-        final String sql = "INSERT INTO knowledge_entry (id, company_id, category, content, source, embedding) VALUES (?, ?, ?, ?, ?, ?)";
+        final String sql = "INSERT INTO knowledge_entry (id, company_id, content, source_id, embedding) VALUES (?, ?, ?, ?, ?)";
         
         long startDb = System.currentTimeMillis();
         jdbcTemplate.update(sql,
                 knowledge.getId(),
                 knowledge.getCompanyId(),
-                knowledge.getCategory(),
                 knowledge.getContent(),
                 knowledge.getSource(),
                 new PGvector(knowledge.getEmbedding())

@@ -30,7 +30,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
     private final String model;
     private final String embeddingModel;
 
-    public OpenAiAdapter(@Value("${openrouter.api.key}") String apiKey,
+    public OpenAiAdapter(@Value("${ai.openrouter.key}") String apiKey,
                          @Value("${openrouter.api.url}") String baseUrl,
                          @Value("${ai.model.chat}") String model,
                          @Value("${ai.model.embedding}") String embeddingModel) {
@@ -38,7 +38,8 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader("Authorization", "Bearer " + apiKey)
-                .defaultHeader("HTTP-Referer", "http://localhost:8080")
+                .defaultHeader("HTTP-Referer", "https://ayntra.ai")
+                .defaultHeader("X-Title", "AyntraCore")
                 .build();
         this.model = model;
         this.embeddingModel = embeddingModel;

@@ -1,12 +1,8 @@
-
 package com.ayntracore.adapters.outbound.database;
 
-import com.pgvector.PGvector;
-import io.hypersistence.utils.hibernate.type.vector.PGvectorType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -27,9 +23,8 @@ public class KnowledgeEntryJpaEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Type(PGvectorType.class)
     @Column(name = "embedding", columnDefinition = "vector(1536)")
-    private PGvector embedding;
+    private float[] embedding;
 
     @Column(name = "source_id")
     private String sourceId;

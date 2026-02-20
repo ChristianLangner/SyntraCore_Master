@@ -7,15 +7,25 @@
 ---
 
 ## 📋 Inhaltsverzeichnis
-1. [Architektur-Philosophie](#architektur-philosophie)
-2. [Schichtenmodell Deep Dive](#schichtenmodell-deep-dive)
-3. [Kernkomponenten & Business Logic](#kernkomponenten-business-logic)
-4. [Hexagonale Architektur in der Praxis](#hexagonale-architektur-in-der-praxis)
-5. [Mandantenfähigkeit (Multi-Tenancy)](#mandantenfähigkeit-multi-tenancy)
-6. [RAG-Workflow Technologie](#rag-workflow-technologie)
-7. [VS Code Setup (IntelliJ-Experience)](#vs-code-setup-intellij-experience)
-8. [Einrichtung & Quick Start](#einrichtung-quick-start)
-9. [Deployment & Profile](#deployment-profile)
+1. [Architektur-Status](#architektur-status)
+2. [Architektur-Philosophie](#architektur-philosophie)
+3. [Schichtenmodell Deep Dive](#schichtenmodell-deep-dive)
+4. [Kernkomponenten & Business Logic](#kernkomponenten-business-logic)
+5. [Hexagonale Architektur in der Praxis](#hexagonale-architektur-in-der-praxis)
+6. [Mandantenfähigkeit (Multi-Tenancy)](#mandantenfähigkeit-multi-tenancy)
+7. [RAG-Workflow Technologie](#rag-workflow-technologie)
+8. [VS Code Setup (IntelliJ-Experience)](#vs-code-setup-intellij-experience)
+9. [Einrichtung & Quick Start](#einrichtung-quick-start)
+10. [Deployment & Profile](#deployment-profile)
+
+---
+
+## 🏛️ Architektur-Status
+
+**Meilenstein: Stabile RAG-Pipeline & Datenbank-Integrität**
+
+- **Datenbank:** Wir nutzen **Neon Postgres (Serverless)** in Kombination mit der `pgvector`-Erweiterung für die Speicherung und Abfrage von Vektor-Embeddings. Dies ermöglicht eine skalierbare und effiziente Ähnlichkeitssuche für unsere RAG-Pipeline.
+- **Resilienz:** Ein neues Feature sorgt für Ausfallsicherheit. Sollte die `Gemini`-API nicht erreichbar sein, schaltet das System automatisch auf `Llama` als Fallback-Modell um.
 
 ---
 
@@ -221,6 +231,9 @@ DATABASE_URL=postgresql://...
 
 ### **Schritt 4: Anwendung starten**
 ```bash
+# Zombie-Prozesse auf Port 8080 beenden
+fuser -k 8080/tcp || true
+
 # Option A: Lokal mit H2
 ./mvnw spring-boot:run --spring.profiles.active=school
 
