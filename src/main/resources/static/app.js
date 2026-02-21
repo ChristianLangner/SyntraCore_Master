@@ -218,4 +218,70 @@ function toast(msg, type = "info") {
   setTimeout(() => el.remove(), 2400);
 }
 
+const sendBtn = document.getElementById('sendBtn');
+const chatInput = document.getElementById('chatInput');
+
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        sendMessage();
+    }
+});
+
+async function sendMessage() {
+    const message = chatInput.value.trim();
+    if (!message) return;
+
+    appendMessage('user', message);
+    chatInput.value = '';
+
+    try {
+        const response = await fetch('/api/agent/entry', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                companyId: currentCompanyId,
+                message: message,
+                mode: 'text'
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API-Fehler: ${response.status} ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        appendMessage('agent', data.shortAnswer);
+        renderRag(data.sources, 0.7);
+
+    } catch (error) {
+        console.error("Fehler beim Senden der Nachricht:", error);
+        toast(error.message, 'warn');
+    }
+}
+
+function appendMessage(sender, text) {
+    const messageElement = document.createElement('div');
+    messageElement.className = `flex items-start gap-3 ${sender === 'user' ? 'justify-end' : ''}`;
+
+    if (sender === 'agent') {
+        messageElement.innerHTML = `
+            <div class="avatar h-9 w-9 rounded-full ring-2 ring-[var(--primary-color)]"></div>
+            <div>
+                <div class="text-xs text-slate-400">${personaName.textContent}</div>
+                <div class="text-sm">${text}</div>
+            </div>`;
+    } else {
+        messageElement.innerHTML = `
+            <div>
+                 <div class="text-xs text-slate-400 text-right">User</div>
+                <div class="text-sm">${text}</div>
+            </div>
+            <div class="h-9 w-9 rounded-full bg-slate-700"></div>`;
+    }
+
+    chatStream.appendChild(messageElement);
+    chatStream.scrollTop = chatStream.scrollHeight;
+}
+
 window.addEventListener("DOMContentLoaded", () => { selectApp("IHK"); });

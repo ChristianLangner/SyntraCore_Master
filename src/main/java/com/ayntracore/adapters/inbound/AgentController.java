@@ -112,6 +112,8 @@ public class AgentController {
                 .uiHints(uiHints)
                 .build();
 
+        System.out.println("DEBUG RESPONSE: " + agentResponse.getShortAnswer());
+
         return ResponseEntity.ok(agentResponse);
     }
 

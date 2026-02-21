@@ -6,33 +6,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Ayntra Executive Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>tailwind.config = { theme: { extend: { colors: { primary: 'var(--primary-color)' } } } }</script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { primary: 'var(--primary-color)' },
+          },
+        },
+      }
+    </script>
     <style>
       :root { 
-        --primary-color:#3B82F6; 
-        --primary-color-translucent: #3B82F61A;
+        --primary-color: #3B82F6; 
         --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=256&q=80'); 
       }
       .glass{background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);border-radius:1rem}
       .avatar{background-image:var(--avatar-url);background-size:cover;background-position:center}
-      #toast-container {
-        position: fixed;
-        bottom: 1.5rem;
-        right: 1.5rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-        z-index: 100;
+      #toast-container{position:fixed;bottom:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:0.75rem;z-index:100}
+      .toast-message{background-color:#ff4d4d;color:white;padding:0.75rem 1.25rem;border-radius:0.5rem;box-shadow:0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a;opacity:0;transform:translateY(20px);transition:opacity .3s ease,transform .3s ease}
+      .thinking-animation {
+        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
       }
-      .toast-message {
-        background-color: #ff4d4d;
-        color: white;
-        padding: 0.75rem 1.25rem;
-        border-radius: 0.5rem;
-        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-        opacity: 0;
-        transform: translateY(20px);
-        transition: opacity 0.3s ease, transform 0.3s ease;
+      @keyframes pulse {
+        0%, 100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: .5;
+        }
       }
     </style>
   </head>
@@ -45,74 +47,151 @@
       </header>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <main class="lg:col-span-8 space-y-4">
-          <section class="glass p-4">
-            <div id="chatStream" class="max-h-[540px] overflow-auto space-y-3">
+          <section class="glass p-4 flex flex-col h-[calc(100vh-120px)] max-h-[700px]">
+            <div id="chatStream" class="flex-1 overflow-auto space-y-4 p-2">
+              <!-- Chat messages will be appended here -->
             </div>
             <div class="mt-3 flex items-center gap-2">
-              <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2" />
-              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90">Senden</button>
+              <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2 focus:ring-2 focus:ring-primary focus:outline-none" />
+              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90 transition-opacity">Senden</button>
             </div>
           </section>
         </main>
-        <aside class="lg:col-span-4 glass p-4">
-          <div class="flex items-center justify-between">
-            <h2 class="text-base font-semibold">RAG‑Insights</h2>
-          </div>
-          <div id="ragSummary" class="mt-3 text-xs text-slate-400"></div>
+        <aside class="lg:col-span-4 glass p-4 h-fit">
+          <h2 class="text-base font-semibold">RAG‑Insights</h2>
           <div id="ragMatches" class="mt-3 space-y-3"></div>
         </aside>
       </div>
     </div>
-    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60">
-      <div class="glass w-[min(90vw,900px)] p-4">
-        <div class="flex items-center justify-between">
-          <h3 id="modalTitle" class="text-base font-semibold">Quelle</h3>
-          <button class="text-sm hover:text-primary" onclick="closeModal()">✕</button>
-        </div>
-        <div id="modalBody" class="mt-3 max-h-[60vh] overflow-auto text-sm text-slate-300 whitespace-pre-wrap"></div>
-      </div>
-    </div>
+    <div id="modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60"><div class="glass w-[min(90vw,900px)] p-4"><div class="flex items-center justify-between"><h3 id="modalTitle" class="text-base font-semibold">Quelle</h3><button class="text-sm hover:text-primary" onclick="closeModal()">✕</button></div><div id="modalBody" class="mt-3 max-h-[60vh] overflow-auto text-sm text-slate-300 whitespace-pre-wrap"></div></div></div>
+    
     <script>
         const PERSONA_UUID = "550e8400-e29b-41d4-a716-446655440000";
 
+        // --- ELEMENTS ---
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatStream = document.getElementById('chatStream');
+        const ragMatches = document.getElementById('ragMatches');
+        const personaNameEl = document.getElementById('persona-name');
+
+        // --- EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchPersonaData();
+            appendMessage('agent', 'Hallo! Wie kann ich dir heute helfen?');
         });
 
+        sendBtn.addEventListener('click', handleSendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSendMessage();
+        });
+
+        // --- CORE FUNCTIONS ---
         async function fetchPersonaData() {
             try {
                 const response = await fetch('/api/agent/entry', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        companyId: PERSONA_UUID,
-                        message: "Ayntra Initialization",
-                        mode: "INITIALIZATION" // Frontend-Fix
-                    })
+                    body: JSON.stringify({ companyId: PERSONA_UUID, message: "Ayntra Initialization", mode: "INITIALIZATION" })
                 });
-                
-                if (!response.ok) {
-                    throw new Error(`API-Fehler: ${response.status} ${response.statusText}`);
-                }
-
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
                 const data = await response.json();
-                console.table(data);
                 applyUiHints(data.uiHints);
-
             } catch (error) {
-                console.error("Fehler bei der Initialisierung:", error);
+                console.error("Initialization error:", error);
                 showToast(error.message);
                 applyUiHints({ primaryColor: '#FFA500', personaName: 'Ayntra (Offline)' });
             }
         }
 
+        async function handleSendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+
+            appendMessage('user', message);
+            chatInput.value = '';
+            const thinkingMessage = appendMessage('agent', '<div class="thinking-animation">...</div>');
+
+            try {
+                const response = await fetch('/api/agent/entry', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyId: PERSONA_UUID, message: message, mode: 'text' })
+                });
+
+                if (!response.ok) throw new Error(`API error: ${response.status}`);
+                const data = await response.json();
+                
+                thinkingMessage.querySelector('.message-content').innerHTML = marked.parse(data.shortAnswer);
+                if (data.sources) renderRag(data.sources, 0.7);
+
+            } catch (error) {
+                console.error("Send message error:", error);
+                showToast(error.message, 'warn');
+                thinkingMessage.querySelector('.message-content').textContent = 'Ein Fehler ist aufgetreten.';
+            }
+        }
+
+        // --- UI HELPERS ---
+        function appendMessage(sender, text) {
+            const messageElement = document.createElement('div');
+            messageElement.className = 'flex items-start gap-3 p-1';
+            let content = '';
+
+            if (sender === 'agent') {
+                const personaName = personaNameEl.textContent || 'Agent';
+                content = `
+                    <div class="avatar h-9 w-9 rounded-full ring-2 ring-[var(--primary-color)] flex-shrink-0"></div>
+                    <div>
+                        <div class="text-xs text-slate-400">${personaName}</div>
+                        <div class="text-sm message-content prose prose-invert">${text}</div>
+                    </div>`;
+            } else { // user
+                messageElement.classList.add('justify-end');
+                content = `
+                    <div class="text-right">
+                        <div class="text-xs text-slate-400">You</div>
+                        <div class="text-sm inline-block rounded-lg bg-primary/20 px-3 py-2">${text}</div>
+                    </div>
+                    <div class="h-9 w-9 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" /></svg>
+                    </div>`;
+            }
+            
+            messageElement.innerHTML = content;
+            chatStream.appendChild(messageElement);
+            chatStream.scrollTop = chatStream.scrollHeight;
+            return messageElement;
+        }
+
+        function renderRag(matches, minScore) {
+          ragMatches.innerHTML = "";
+          if (!matches || matches.length === 0) {
+              ragMatches.innerHTML = '<div class="text-xs text-slate-400">Keine relevanten Quellen gefunden.</div>';
+              return;
+          }
+          matches.forEach(m => {
+            const score = m.relevance;
+            const warn = score < minScore;
+            const card = document.createElement("div");
+            card.className = "rounded-lg bg-slate-900/70 border border-white/10 p-3";
+            card.innerHTML = `
+              <div class="flex items-center justify-between mb-1">
+                <div class="text-sm font-medium truncate pr-4">${m.sourceName}</div>
+                <div class="text-xs ${warn ? 'text-amber-400' : 'text-slate-400'} flex-shrink-0">${score.toFixed(2)}</div>
+              </div>
+              <div class="h-2 w-full bg-slate-800 rounded"><div class="h-2 ${warn ? 'bg-amber-400' : 'bg-[var(--primary-color)]'} rounded" style="width:${(score*100).toFixed(0)}%"></div></div>
+              <div class="mt-1 text-[11px] text-slate-400">${warn ? '[NIEDRIGE RELEVANZ]' : '[VEKTOR-MATCH]'}</div>`;
+            ragMatches.appendChild(card);
+          });
+        }
+
         function applyUiHints(hints) {
+            if (!hints) return;
             const primaryColor = hints.primaryColor || '#FFA500';
             const personaName = hints.personaName || 'Ayntra Executive';
-
             document.documentElement.style.setProperty('--primary-color', primaryColor);
-            document.documentElement.style.setProperty('--primary-color-translucent', `${primaryColor}1A`);
-            document.getElementById('persona-name').textContent = personaName;
+            personaNameEl.textContent = personaName;
         }
 
         function showToast(message) {
@@ -121,17 +200,19 @@
             toast.className = 'toast-message';
             toast.textContent = message;
             container.appendChild(toast);
-            
             setTimeout(() => {
                 toast.style.opacity = '1';
                 toast.style.transform = 'translateY(0)';
             }, 100);
-
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateY(20px)';
                 setTimeout(() => toast.remove(), 300);
             }, 5000);
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
         }
     </script>
   </body>

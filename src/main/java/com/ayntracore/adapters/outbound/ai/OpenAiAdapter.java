@@ -50,6 +50,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
     public AiResponse generateResponse(AiChatRequest request) {
         log.info("Generating OpenRouter response for model: {}", request.model() != null ? request.model() : model);
 
+        // TODO: Morgen hier den Try-Catch-Block für den Modell-Fallback (z.B. auf Llama) einbauen.
         try {
             Map<String, Object> body = Map.of(
                     "model", request.model() != null ? request.model() : model,
