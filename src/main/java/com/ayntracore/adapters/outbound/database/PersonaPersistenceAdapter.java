@@ -119,6 +119,8 @@ public class PersonaPersistenceAdapter implements PersonaOutputPort {
                 .traits(persona.getTraits())
                 .promptTemplate(persona.getPromptTemplate())
                 .exampleDialog(persona.getExampleDialog())
+                .visualDna(persona.getVisualDna())
+                .fixedSeed(persona.getFixedSeed())
                 .build();
     }
 
@@ -140,6 +142,8 @@ public class PersonaPersistenceAdapter implements PersonaOutputPort {
         persona.setTraits(entity.getTraits());
         persona.setPromptTemplate(entity.getPromptTemplate());
         persona.setExampleDialog(entity.getExampleDialog());
+        persona.setVisualDna(entity.getVisualDna());
+        persona.setFixedSeed(entity.getFixedSeed());
 
         return persona;
     }

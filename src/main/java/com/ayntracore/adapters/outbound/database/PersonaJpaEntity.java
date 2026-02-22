@@ -67,6 +67,12 @@ public class PersonaJpaEntity {
     @Column(name = "example_dialog", columnDefinition = "TEXT")
     private String exampleDialog;
 
+    @Column(name = "visual_dna", columnDefinition = "TEXT")
+    private String visualDna;
+
+    @Column(name = "fixed_seed")
+    private Long fixedSeed;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

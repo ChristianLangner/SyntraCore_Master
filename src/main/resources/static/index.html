@@ -51,9 +51,15 @@
             <div id="chatStream" class="flex-1 overflow-auto space-y-4 p-2">
               <!-- Chat messages will be appended here -->
             </div>
-            <div class="mt-3 flex items-center gap-2">
-              <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2 focus:ring-2 focus:ring-primary focus:outline-none" />
-              <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90 transition-opacity">Senden</button>
+            <div class="mt-3">
+              <div class="flex items-center gap-2">
+                <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2 focus:ring-2 focus:ring-primary focus:outline-none" />
+                <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90 transition-opacity">Senden</button>
+              </div>
+              <div class="flex items-center gap-2 mt-2">
+                  <button id="fast-button" class="px-3 py-1 text-xs rounded-md bg-slate-800 hover:bg-slate-700">Test-Mode (Billig)</button>
+                  <button id="final-button" class="px-3 py-1 text-xs rounded-md bg-slate-800 hover:bg-slate-700">Pro-Mode (Unfiltered)</button>
+              </div>
             </div>
           </section>
         </main>
@@ -74,6 +80,8 @@
         const chatStream = document.getElementById('chatStream');
         const ragMatches = document.getElementById('ragMatches');
         const personaNameEl = document.getElementById('persona-name');
+        const fastButton = document.getElementById('fast-button');
+        const finalButton = document.getElementById('final-button');
 
         // --- EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -84,6 +92,18 @@
         sendBtn.addEventListener('click', handleSendMessage);
         chatInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') handleSendMessage();
+        });
+
+        fastButton.addEventListener('click', () => {
+            const currentText = chatInput.value;
+            chatInput.value = `/fast ${currentText}`;
+            chatInput.focus();
+        });
+
+        finalButton.addEventListener('click', () => {
+            const currentText = chatInput.value;
+            chatInput.value = `/final ${currentText}`;
+            chatInput.focus();
         });
 
         // --- CORE FUNCTIONS ---

@@ -26,41 +26,7 @@ public class ImageGenerationService {
     public ImageGenerationResponse generateImage(String prompt, Persona persona) {
         log.debug("Generating image for company: {}, persona type: {}", persona.getCompanyId(), persona.getPersonaType());
 
-        ContentSafetyService.ValidationResult validation = contentSafetyService.validateImagePrompt(prompt, persona);
-
-        if (validation.isInvalid()) {
-            log.warn("Image prompt validation failed: {}", validation.errorMessage());
-            return ImageGenerationResponse.error(validation.errorMessage());
-        }
-
-        SafetyLevel safetyLevel = determineSafetyLevel(persona);
-
-        log.info("Determined safety level: {} for persona type: {}, allowExplicitContent: {}",
-                safetyLevel, persona.getPersonaType(), persona.getAllowExplicitContent());
-
-        ImageGenerationRequest request = new ImageGenerationRequest(
-                prompt,
-                safetyLevel,
-                persona.getCompanyId()
-        );
-
-        try {
-            ImageGenerationResponse response = imageGenerationPort.generateImage(request);
-
-            if (response.success()) {
-                log.info("Image generated successfully for company: {}, imageId: {}",
-                        persona.getCompanyId(), response.imageId());
-            } else {
-                log.warn("Image generation failed for company: {}, error: {}",
-                        persona.getCompanyId(), response.errorMessage());
-            }
-
-            return response;
-
-        } catch (ImageGenerationPort.ImageGenerationException e) {
-            log.error("Image generation exception for company: {}", persona.getCompanyId(), e);
-            return ImageGenerationResponse.error("Image generation failed: " + e.getMessage());
-        }
+        return generateImageAdvanced(prompt, persona, null, null, null, null, null);
     }
 
     public ImageGenerationResponse generateImageWithSafetyLevel(
@@ -122,8 +88,10 @@ public class ImageGenerationService {
 
         SafetyLevel safetyLevel = determineSafetyLevel(persona);
 
+        String finalPrompt = persona.getVisualDna() != null ? persona.getVisualDna() + ", " + prompt : prompt;
+
         ImageGenerationRequest request = new ImageGenerationRequest(
-                prompt,
+                finalPrompt,
                 safetyLevel,
                 persona.getCompanyId(),
                 negativePrompt != null ? negativePrompt : "low quality, blurry, distorted",
@@ -131,7 +99,8 @@ public class ImageGenerationService {
                 height != null ? height : 512,
                 steps != null ? steps : 30,
                 model,
-                persona.getTraits().get("referenceImageUrl")
+                persona.getTraits().get("referenceImageUrl"),
+                persona.getFixedSeed()
         );
 
         try {

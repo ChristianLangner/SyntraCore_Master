@@ -24,6 +24,10 @@ public class Persona {
     private String systemPrompt;
     private String speakingStyle;
     @Builder.Default
+    private String visualDna = "";
+    @Builder.Default
+    private Long fixedSeed = 0L;
+    @Builder.Default
     private Map<String, String> traits = new LinkedHashMap<>();
     @Builder.Default
     private String promptTemplate = defaultTemplate();

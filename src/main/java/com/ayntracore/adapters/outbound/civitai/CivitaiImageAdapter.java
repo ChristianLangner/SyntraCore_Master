@@ -62,6 +62,11 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
         requestBody.put("steps", request.steps());
         requestBody.put("nsfw", nsfwEnabled);
 
+        if (request.fixedSeed() != null) {
+            requestBody.put("seed", request.fixedSeed());
+            log.info("Using fixed seed for image generation: {}", request.fixedSeed());
+        }
+
         if (request.referenceImageUrl() != null && !request.referenceImageUrl().isBlank()) {
             log.info("Applying Face-Lock (IP-Adapter) using reference image: {}", request.referenceImageUrl());
             Map<String, Object> controlNet = Map.of(

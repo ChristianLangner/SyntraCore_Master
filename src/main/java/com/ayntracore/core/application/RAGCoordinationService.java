@@ -4,6 +4,8 @@ package com.ayntracore.core.application;
 import com.ayntracore.core.domain.AiChatRequest;
 import com.ayntracore.core.domain.KnowledgeEntry;
 import com.ayntracore.core.domain.Persona;
+import com.ayntracore.core.domain.ChatMessage;
+import com.ayntracore.core.ports.ChatMessageRepository;
 import com.ayntracore.core.ports.UniversalAiPort;
 import com.ayntracore.core.ports.VectorSearchPort;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +13,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -19,10 +24,11 @@ import java.util.UUID;
 public class RAGCoordinationService {
 
     private static final int DEFAULT_CONTEXT_LIMIT = 5;
-    private static final double DEFAULT_MIN_SIMILARITY = 0.7;
+    private static final double DEFAULT_MIN_SIMILARITY = 0.5;
     private final VectorSearchPort vectorSearchPort;
     private final UniversalAiPort aiServicePort;
     private final ContentSafetyService contentSafetyService;
+    private final ChatMessageRepository chatMessageRepository;
 
     public String generateResponseWithContext(String userMessage, Persona persona) {
         log.debug("Generating RAG response for company: {}", persona.getCompanyId());
@@ -84,7 +90,8 @@ public class RAGCoordinationService {
 
         String combinedContext = String.join("\n\n---\n\n", filteredContexts);
 
-        AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona);
+        List<ChatMessage> chatHistory = chatMessageRepository.findTop10ByCompanyIdOrderByTimestampDesc(persona.getCompanyId());
+        AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona, chatHistory);
         String llmResponse = aiServicePort.generateResponse(aiRequest).content();
 
         List<ContextMetadata> metadata = scoredKnowledge.stream()
@@ -128,6 +135,16 @@ public class RAGCoordinationService {
 
         AiChatRequest aiRequest = createAiRequest("Analyze this support ticket: " + ticketMessage, combinedContext, persona);
         return aiServicePort.generateResponse(aiRequest).content();
+    }
+
+    private AiChatRequest createAiRequest(String input, String context, Persona persona, List<ChatMessage> chatHistory) {
+        String systemPrompt = buildMasterSystemPrompt(context, persona);
+        List<Map<String, Object>> messages = new ArrayList<>();
+        for (ChatMessage msg : chatHistory) {
+            messages.add(Map.of("role", msg.role(), "content", msg.content()));
+        }
+
+        return new AiChatRequest(systemPrompt, input, messages, 0.7, null, null, null);
     }
 
     private AiChatRequest createAiRequest(String input, String context, Persona persona) {

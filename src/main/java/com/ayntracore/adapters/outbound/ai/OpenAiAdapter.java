@@ -6,6 +6,7 @@ import com.ayntracore.core.domain.AiProvider;
 import com.ayntracore.core.domain.AiResponse;
 import com.ayntracore.core.domain.AiResponseMetadata;
 import com.ayntracore.core.ports.EmbeddingPort;
+import com.ayntracore.core.ports.ImageGenerationPort;
 import com.ayntracore.core.ports.UniversalAiPort;
 import com.pgvector.PGvector;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Flow;
@@ -23,17 +25,23 @@ import java.util.concurrent.SubmissionPublisher;
 
 @Slf4j
 @Component
-public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
+public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGenerationPort {
 
     private final RestClient restClient;
     private final String apiKey;
     private final String model;
     private final String embeddingModel;
+    private final String imageModel;
+    private final String cheapImageModel;
+    private final String unfilteredImageModel;
 
     public OpenAiAdapter(@Value("${ai.openrouter.key}") String apiKey,
                          @Value("${openrouter.api.url}") String baseUrl,
                          @Value("${ai.model.chat}") String model,
-                         @Value("${ai.model.embedding}") String embeddingModel) {
+                         @Value("${ai.model.embedding}") String embeddingModel,
+                         @Value("${ai.model.image}") String imageModel,
+                         @Value("${ai.model.image.cheap}") String cheapImageModel,
+                         @Value("${ai.model.image.unfiltered}") String unfilteredImageModel) {
         this.apiKey = apiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -43,6 +51,9 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
                 .build();
         this.model = model;
         this.embeddingModel = embeddingModel;
+        this.imageModel = imageModel;
+        this.cheapImageModel = cheapImageModel;
+        this.unfilteredImageModel = unfilteredImageModel;
         log.info("OpenRouter API connected");
     }
 
@@ -163,12 +174,76 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort {
         }
     }
 
-    private List<Map<String, String>> createMessages(AiChatRequest request) {
-        List<Map<String, String>> messages = new ArrayList<>();
+    private List<Map<String, Object>> createMessages(AiChatRequest request) {
+        List<Map<String, Object>> messages = new ArrayList<>();
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(Map.of("role", "system", "content", request.systemPrompt()));
         }
+        // Add previous messages here
+        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
+            messages.addAll(request.getMessages());
+        }
         messages.add(Map.of("role", "user", "content", request.userMessage()));
         return messages;
+    }
+
+    @Override
+    public ImageGenerationResponse generateImage(ImageGenerationRequest request) {
+        log.info("Generating OpenRouter image for model: {}", imageModel);
+
+        String currentModel = imageModel;
+        String prompt = request.prompt();
+
+        if (prompt.startsWith("/fast")) {
+            currentModel = cheapImageModel;
+            prompt = prompt.substring(5).trim();
+        } else if (prompt.startsWith("/final")) {
+            currentModel = unfilteredImageModel;
+            prompt = prompt.substring(6).trim();
+        }
+
+        try {
+            Map<String, Object> message = new HashMap<>();
+            message.put("role", "user");
+            message.put("content", prompt);
+
+            Map<String, Object> body = new HashMap<>();
+            body.put("model", currentModel);
+            body.put("messages", List.of(message));
+            body.put("modalities", List.of("image"));
+
+            if (currentModel.equals(unfilteredImageModel) && request.fixedSeed() != null) {
+                 body.put("seed", request.fixedSeed());
+            }
+
+            Map<String, Object> response = restClient.post()
+                    .uri("/chat/completions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (response == null || !response.containsKey("choices")) {
+                throw new RuntimeException("Empty or invalid response from OpenRouter");
+            }
+
+            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+            Map<String, Object> firstChoice = choices.get(0);
+            Map<String, Object> responseMessage = (Map<String, Object>) firstChoice.get("message");
+            String base64Image = (String) responseMessage.get("content");
+
+            String imageUrl = "data:image/png;base64," + base64Image;
+
+            return ImageGenerationResponse.success(imageUrl, "openrouter-image", request.safetyLevel(), currentModel);
+
+        } catch (Exception e) {
+            log.error("Error calling OpenRouter API for image generation: {}", e.getMessage());
+            throw new RuntimeException("AI Provider currently unavailable for image generation (OpenRouter)", e);
+        }
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return !apiKey.isBlank();
     }
 }

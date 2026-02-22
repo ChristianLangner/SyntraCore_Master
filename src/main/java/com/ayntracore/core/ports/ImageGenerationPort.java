@@ -19,14 +19,19 @@ public interface ImageGenerationPort {
         Integer height,
         Integer steps,
         String model,
-        String referenceImageUrl // Added for Face-Lock
+        String referenceImageUrl, // Added for Face-Lock
+        Long fixedSeed // Added for Visual DNA
     ) {
         public ImageGenerationRequest(String prompt, SafetyLevel safetyLevel, UUID companyId) {
-            this(prompt, safetyLevel, companyId, null, 512, 512, 30, null, null);
+            this(prompt, safetyLevel, companyId, null, 512, 512, 30, null, null, null);
         }
 
         public ImageGenerationRequest(String prompt, SafetyLevel safetyLevel, UUID companyId, String negativePrompt, Integer width, Integer height, Integer steps, String model) {
-            this(prompt, safetyLevel, companyId, negativePrompt, width, height, steps, model, null);
+            this(prompt, safetyLevel, companyId, negativePrompt, width, height, steps, model, null, null);
+        }
+
+        public ImageGenerationRequest(String prompt, SafetyLevel safetyLevel, UUID companyId, String negativePrompt, Integer width, Integer height, Integer steps, String model, String referenceImageUrl) {
+            this(prompt, safetyLevel, companyId, negativePrompt, width, height, steps, model, referenceImageUrl, null);
         }
     }
 
