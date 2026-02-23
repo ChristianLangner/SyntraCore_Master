@@ -1,12 +1,13 @@
 # 🚀 AyntraCore – Enterprise Multi-Tenant Persona & RAG Engine
 
-**Architektur-Level:** Hexagonal (Ports & Adapters) | **Phase:** 4.0 (Finalized, Documented)  
-**Stack:** Java 21 | Spring Boot 3.2.3 | PostgreSQL + pgvector for RAG | Jakarta EE  
+**Architektur-Level:** Hexagonal (Ports & Adapters) | **Phase:** 4.2 (Multi-Persona UI & Hardening)  
+**Stack:** Java 21 | Spring Boot 3.2.3 | PostgreSQL + pgvector for RAG | Jakarta EE | jQuery
 **Zielgruppe:** IHK-Prüfungskandidaten, Enterprise Architekten, AI-Engineer
 
 ---
 
 ## 📋 Inhaltsverzeichnis
+
 1. [Architektur-Status](#architektur-status)
 2. [Architektur-Philosophie](#architektur-philosophie)
 3. [Schichtenmodell Deep Dive](#schichtenmodell-deep-dive)
@@ -22,21 +23,26 @@
 
 ## 🏛️ Architektur-Status
 
-**Meilenstein: Stabile RAG-Pipeline & Datenbank-Integrität**
+### **Meilenstein (v4.2): Multi-Persona-UI & Fehlerbehebung**
 
-- **Datenbank:** Wir nutzen **Neon Postgres (Serverless)** in Kombination mit der `pgvector`-Erweiterung für die Speicherung und Abfrage von Vektor-Embeddings. Dies ermöglicht eine skalierbare und effiziente Ähnlichkeitssuche für unsere RAG-Pipeline.
-- **Resilienz:** Ein neues Feature sorgt für Ausfallsicherheit. Sollte die `Gemini`-API nicht erreichbar sein, schaltet das System automatisch auf `Llama` als Fallback-Modell um.
+- **Frontend:** Eine neue, dynamische Benutzeroberfläche (`index.html` + `app.js`) wurde implementiert. Benutzer können nun live zwischen verschiedenen KI-Personas (z.B. "Astra" für Text, "Seraphina" für Bilder) wechseln.
+- **Backend-Härtung:** Der `ImageGenerationService` wurde mit einem Guard-Clause versehen, um fehlerhafte Anfragen von nicht-visuellen Personas proaktiv abzufangen. Dies erhöht die Stabilität und verhindert unnötige API-Aufrufe.
+- **Bugfix:** Ein kritischer Fehler im Frontend, der fälschlicherweise Bildgenerierungs-Anfragen für reine Text-Personas auslöste, wurde behoben. Die `mode`-Einstellung (`text` vs. `image`) wird nun zuverlässig basierend auf den Fähigkeiten der aktiven Persona gesetzt.
+- **KI-Agent-Integration:** Das Projekt ist nun für die Verwendung mit externen Debugging- und Code-Analyse-Tools wie dem "Kilo-Agenten" vorkonfiguriert (`.kilocode.json`).
+
+### **Meilenstein (v4.0): Stabile RAG-Pipeline & Datenbank-Integrität**
+
+- **Datenbank:** Wir nutzen **Neon Postgres (Serverless)** in Kombination mit der `pgvector`-Erweiterung für die Speicherung und Abfrage von Vektor-Embeddings.
+- **Resilienz:** Ein Feature sorgt für Ausfallsicherheit. Sollte eine primäre KI-API nicht erreichbar sein, kann das System auf ein Fallback-Modell umschalten.
 
 ---
 
 ## 🎯 Architektur-Philosophie
 
-AyntraCore folgt der **Hexagonalen Architektur** (auch "Ports & Adapters" genannt), entwickelt von Alistair Cockburn. Dies ist das _de facto_-Standard-Muster für moderne Enterprise-Anwendungen, die Framework-abhängig werdenden Altlasten vermeiden wollen.
+AyntraCore folgt der **Hexagonalen Architektur** (auch "Ports & Adapters" genannt). Dies ist das _de facto_-Standard-Muster für moderne Enterprise-Anwendungen, die Framework-Abhängigkeiten vermeiden wollen.
 
-### Warum Hexagonal?
-- **Framework-Unabhängigkeit:** Der Core (Domain + Application) enthält _keine_ Abhängigkeiten zu Spring, JPA oder anderen Frameworks.
+- **Framework-Unabhängigkeit:** Der Core (Domain + Application) ist frei von Spring-, JPA- oder anderen Framework-Abhängigkeiten.
 - **Testbarkeit:** Jede Schicht kann isoliert mit Mock-Adaptern getestet werden.
-- **Skalierbarkeit:** Neue Adapter (z.B. REST, GraphQL, gRPC) können ohne Änderung des Cores hinzugefügt werden.
 - **Business-Fokus:** Der Core beschreibt _was_ das System tut, nicht _wie_.
 
 ---
@@ -46,202 +52,59 @@ AyntraCore folgt der **Hexagonalen Architektur** (auch "Ports & Adapters" genann
 ### **Schicht 1: Domain Layer (Geschäftslogik)**
 _Pfad:_ `com.ayntracore.core.domain`
 
-**Zweck:** Repräsentiert die reinen Geschäftsregeln ohne technische Abhängigkeiten.
+- **`Persona`**: Multi-Tenant-Identität eines Chatbots (`companyId`, `systemPrompt`, `traits`).
+- **`KnowledgeEntry`**: Wissensbasis-Eintrag mit Vektor-Embedding (`companyId`, `content`, `embedding`).
+- **`SupportTicket`**: Customer-Support-Anfrage.
 
-**Kernentitäten:**
-- **`Persona`**: Multi-Tenant-Identität eines Chatbots
-  - `companyId`: Zugehörigkeit zum Mandanten (Tenant)
-  - `systemPrompt`: Basis-Charakterisierung (z.B. "Du bist ein Support-Bot")
-  - `traits`: JSON-Map für flexible Eigenschaften
-  - `promptTemplate`: Dynamischer Prompt mit Platzhaltern
-  
-- **`KnowledgeEntry`**: Wissensbasis-Eintrag mit Vektor-Embedding
-  - `companyId`: Tenant-Bezug
-  - `content`: Der eigentliche Inhaltstext
-  - `embedding`: float[] (1536-dim für OpenAI text-embedding-3-small)
-  
-- **`SupportTicket`**: Customer-Support-Anfrage
-  - `companyId`: Tenant-Bezug (Sicherheit!)
-  - `customerName`, `message`: Anfrage-Details
-  - `aiAnalysis`: RAG-generierte AI-Antwort
-
-**Wichtig:** Diese Klassen sind **Framework-unabhängig**. Sie importieren _kein_ `jakarta.persistence` oder `org.springframework`.
-
----
+Diese Klassen sind **Framework-unabhängig**.
 
 ### **Schicht 2: Application Layer (Geschäftsfälle)**
 _Pfad:_ `com.ayntracore.core.application`
 
-**Kernservices:**
-
-- **`RAGCoordinationService`** – Der Gehirn-Orchestrator
-  - Koordiniert Retrieval → Augmentation → Generation
-  - Input: `AiChatRequest` (customerMessage, companyId)
-  - Output: `AiResponse` (generatedText, confidence, tokenUsage)
-
-- **`ContentSafetyService`** – Security Layer
-  - Prüft auf Prompt-Injection-Attacks
-  - Filtert NSFW-Inhalte basierend auf Persona-Policy
-
-- **`PersonaService`** – Persona-Management
-  - Lädt aktive Persona pro Company
-  - Generiert dynamische System-Prompts
-
----
+- **`RAGCoordinationService`**: Orchestriert den RAG-Workflow.
+- **`ImageGenerationService`**: Generiert Bilder basierend auf Persona-Fähigkeiten.
+- **`ContentSafetyService`**: Filtert schädliche Inhalte.
+- **`PersonaService`**: Verwaltet die Personas.
 
 ### **Schicht 3: Ports (Schnittstellen-Verträge)**
 _Pfad:_ `com.ayntracore.core.ports`
 
-**Outbound Ports** (rufen externe Systeme auf):
-- `KnowledgeBasePort`: Wissensdatenbank-Zugriff (mit Vektor-Suche)
-- `PersonaRepositoryPort`: Persona-Persistung mit `findActiveByCompanyId()`
-- `TicketRepositoryPort`: Ticket-Persistung mit **Mandanten-Filterung** (`findAllByCompanyId()`, `findByIdAndCompanyId()`)
-
----
+Definiert die Schnittstellen für Outbound-Kommunikation (z.B. `KnowledgeBasePort`, `PersonaRepositoryPort`).
 
 ### **Schicht 4: Adapters (Konkrete Implementierungen)**
 _Pfad:_ `com.ayntracore.adapters`
 
-**Inbound Adapters:**
-- `ChatController`: WebSocket Endpoint für Chat-Anfragen
-- `AdminController`: Admin-UI Konfiguration
-
-**Outbound Adapters:**
-- `VectorSearchAdapter`: PostgreSQL + pgvector Integration
-- `OpenAiAdapter` / `DeepSeekAdapter`: LLM-Gateway
-- `TicketDatabaseAdapter`: JPA-Persistierung mit Mandanten-Filterung
-- `PersonaPersistenceAdapter`: Persona-Persistierung
+- **Inbound:** `AgentController` (REST), `ChatController` (WebSocket).
+- **Outbound:** `VectorSearchAdapter` (pgvector), `OpenAiAdapter`/`DeepSeekAdapter` (LLMs), `PersonaPersistenceAdapter` (DB).
 
 ---
 
 ## 👥 Mandantenfähigkeit (Multi-Tenancy)
 
-AyntraCore ist vollständig **Multi-Tenant-ready**. Jede Domain-Entität hat eine `companyId` UUID.
-
-**Sicherheitsmechanismus:**
-
-```java
-// ✅ SAFE: Nur Tickets für diese Company
-List<SupportTicket> findAllByCompanyId(UUID companyId);
-
-// ✅ SAFE: Verhindert Cross-Tenant-Access
-Optional<SupportTicket> findByIdAndCompanyId(UUID id, UUID companyId);
-
-// ❌ DEPRECATED: Unsicher, gibt alle Tickets zurück
-@Deprecated
-List<SupportTicket> findAll();
-```
-
-In SQL wird dies erzwungen:
-```sql
--- ✅ Always include company_id in WHERE clause
-SELECT * FROM tickets 
-WHERE id = $1 AND company_id = $2;
-```
+Die Anwendung ist vollständig mandantenfähig. Jede Entität ist über eine `companyId` isoliert, um Cross-Tenant-Datenzugriff zu verhindern. SQL-Abfragen erzwingen diesen Filter auf Datenbankebene.
 
 ---
 
 ## 🤖 RAG-Workflow Technologie
 
-**RAG = Retrieval-Augmented Generation**
-
-```
-Customer-Input (Text)
-    ↓
-[1] QUERY EMBEDDING (OpenAI text-embedding-3-small)
-    ↓
-[2] VECTOR SEARCH (PostgreSQL pgvector, Cosine-Similarity)
-    ↓
-[3] KNOWLEDGE RETRIEVAL (Top-3 Resultate)
-    ↓
-[4] CONTEXT AUGMENTATION (Zusammenstellung des Kontexts)
-    ↓
-[5] CONTENT SAFETY CHECK (Prompt-Injection Filter)
-    ↓
-[6] LLM CALL (OpenAI/DeepSeek mit System-Prompt von Persona)
-    ↓
-Generated Response (Text)
-```
+Der Prozess folgt dem Standard-RAG-Muster: Query Embedding → Vector Search → Knowledge Retrieval → Context Augmentation → Safety Check → LLM Call.
 
 ---
 
 ## 💻 VS Code Setup (IntelliJ-Experience)
 
-### **.vscode/settings.json**
-```json
-{
-  "editor.fontFamily": "'JetBrains Mono', 'Fira Code', monospace",
-  "editor.fontLigatures": true,
-  "editor.fontSize": 13,
-  "editor.lineHeight": 1.5,
-  "workbench.colorTheme": "Default Dark Modern",
-  "java.configuration.updateBuildConfiguration": "automatic",
-  "java.import.maven.enabled": true
-}
-```
-
-### **.vscode/launch.json – Debug Profiles**
-```json
-{
-  "configurations": [
-    {
-      "name": "AyntraCore: HOME (Neon PostgreSQL)",
-      "type": "java",
-      "mainClass": "com.ayntracore.AyntraCoreApplication",
-      "args": "--spring.profiles.active=home"
-    },
-    {
-      "name": "AyntraCore: SCHOOL (H2 In-Memory)",
-      "type": "java",
-      "mainClass": "com.ayntracore.AyntraCoreApplication",
-      "args": "--spring.profiles.active=school"
-    }
-  ]
-}
-```
+Konfigurationsdateien für `settings.json` und `launch.json` sind im Projekt enthalten, um ein nahtloses Entwicklungs- und Debugging-Erlebnis in VS Code zu ermöglichen.
 
 ---
 
 ## 🚀 Einrichtung & Quick Start
 
-### **Schritt 1: Setup ausführen**
-```bash
-cd /workspaces/AyntraCore_Master
-
-# PowerShell (Windows/WSL)
-./src/setup.ps1
-
-# Oder manuell (Linux/Mac):
-chmod +x mvnw
-rm -rf target bin .idea
-mkdir -p .vscode
-```
-
-### **Schritt 2: Environment-Variablen setzen**
-```bash
-# .env (wird gitignored)
-OPENAI_API_KEY=sk-...
-DATABASE_URL=postgresql://...
-```
-
-### **Schritt 3: Build durchführen**
-```bash
-./mvnw clean compile -DskipTests
-```
-
-### **Schritt 4: Anwendung starten**
-```bash
-# Zombie-Prozesse auf Port 8080 beenden
-fuser -k 8080/tcp || true
-
-# Option A: Lokal mit H2
-./mvnw spring-boot:run --spring.profiles.active=school
-
-# Option B: Cloud mit PostgreSQL
-./mvnw spring-boot:run --spring.profiles.active=home
-
-# Oder in VS Code: F5 (nutze launch.json profile)
-```
+1.  **Setup ausführen:** `./src/setup.ps1` (Windows/WSL) oder manuell `chmod +x mvnw`.
+2.  **Environment-Variablen setzen:** Erstellen Sie eine `.env`-Datei mit `OPENAI_API_KEY` und `DATABASE_URL`.
+3.  **Build:** `./mvnw clean compile -DskipTests`
+4.  **Anwendung starten:**
+    -   `./mvnw spring-boot:run --spring.profiles.active=school` (für lokale H2-Datenbank)
+    -   `./mvnw spring-boot:run --spring.profiles.active=home` (für Neon PostgreSQL)
 
 ---
 
@@ -255,6 +118,5 @@ fuser -k 8080/tcp || true
 ---
 
 **Entwickelt von:** Christian Langner  
-**Version:** 4.1 | Multi-Tenancy, RAG, Enterprise-Ready, Finalized & Documented 
-**Technologie-Stack:** Java 21, Spring Boot 3.2.3, PostgreSQL mit pgvector, Jakarta EE, Lombok, Maven.
-**Letzte Aktualisierung:** Februar 2026
+**Version:** 4.2 | Multi-Persona UI & Hardening 
+**Letzte Aktualisierung:** März 2026

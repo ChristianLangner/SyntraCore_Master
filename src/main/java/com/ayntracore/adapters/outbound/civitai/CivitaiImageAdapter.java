@@ -1,9 +1,10 @@
 package com.ayntracore.adapters.outbound.civitai;
 
+import com.ayntracore.core.domain.ImageGenerationResponse;
 import com.ayntracore.core.ports.ImageGenerationPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -15,8 +16,8 @@ import java.util.List;
 import java.util.Map;
 
 @Component
-@Profile("home")
 @Slf4j
+@ConditionalOnProperty(name = "adapter.image.provider", havingValue = "civitai")
 public class CivitaiImageAdapter implements ImageGenerationPort {
 
     private static final String CIVITAI_API_URL = "https://api.civitai.com";
@@ -132,6 +133,8 @@ public class CivitaiImageAdapter implements ImageGenerationPort {
         }
 
         try {
+            // A simple health check could be to query account info
+            // For now, we assume if the key is set, the service is available
             return true;
 
         } catch (Exception e) {

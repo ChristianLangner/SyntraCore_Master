@@ -21,4 +21,8 @@ public class AgentRequest {
 
     // Placeholder for image-related modes
     private String imageUrl;
+
+    // Fields for model and temperature override
+    private String model;
+    private Double temperature;
 }

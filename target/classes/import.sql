@@ -1,0 +1,1 @@
+INSERT INTO persona (id, name, role, company_id, persona_type) VALUES ('550e8400-e29b-41d4-a716-446655440000', 'Ayntra Core Agent', 'Strategic AI', '550e8400-e29b-41d4-a716-446655440000', 'ASSISTANT');

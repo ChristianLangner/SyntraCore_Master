@@ -1,0 +1,58 @@
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------------< com.ayntracore:ayntracore >----------------------
+[INFO] Building AyntraCore 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[INFO] 
+[INFO] >>> spring-boot:3.2.3:run (default-cli) > test-compile @ ayntracore >>>
+[INFO] 
+[INFO] --- resources:3.3.1:resources (default-resources) @ ayntracore ---
+[INFO] Copying 3 resources from src/main/resources to target/classes
+[INFO] Copying 6 resources from src/main/resources to target/classes
+[INFO] 
+[INFO] --- compiler:3.13.0:compile (default-compile) @ ayntracore ---
+[INFO] Recompiling the module because of changed source code.
+[INFO] Compiling 65 source files with javac [debug parameters release 21] to target/classes
+[INFO] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/core/services/TicketService.java: /home/user/AyntraCore_Master/src/main/java/com/ayntracore/core/services/TicketService.java uses or overrides a deprecated API.
+[INFO] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/core/services/TicketService.java: Recompile with -Xlint:deprecation for details.
+[INFO] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/ai/DeepSeekAdapter.java: Some input files use unchecked or unsafe operations.
+[INFO] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/ai/DeepSeekAdapter.java: Recompile with -Xlint:unchecked for details.
+[INFO] Some messages have been simplified; recompile with -Xdiags:verbose to get full output
+[INFO] -------------------------------------------------------------
+[ERROR] COMPILATION ERROR : 
+[INFO] -------------------------------------------------------------
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[59,33] cannot find symbol
+  symbol:   method findFirstByCompanyId(java.util.UUID)
+  location: variable personaRepository of type com.ayntracore.adapters.outbound.database.SpringDataPersonaRepository
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[74,5] method does not override or implement a method from a supertype
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[81,5] method does not override or implement a method from a supertype
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[98,30] cannot find symbol
+  symbol:   method getRole()
+  location: variable persona of type com.ayntracore.core.domain.Persona
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[115,39] incompatible types: java.lang.String cannot be converted to com.ayntracore.core.domain.PersonaType
+[INFO] 5 errors 
+[INFO] -------------------------------------------------------------
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  13.393 s
+[INFO] Finished at: 2026-02-23T10:31:19Z
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.13.0:compile (default-compile) on project ayntracore: Compilation failure: Compilation failure: 
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[59,33] cannot find symbol
+[ERROR]   symbol:   method findFirstByCompanyId(java.util.UUID)
+[ERROR]   location: variable personaRepository of type com.ayntracore.adapters.outbound.database.SpringDataPersonaRepository
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[74,5] method does not override or implement a method from a supertype
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[81,5] method does not override or implement a method from a supertype
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[98,30] cannot find symbol
+[ERROR]   symbol:   method getRole()
+[ERROR]   location: variable persona of type com.ayntracore.core.domain.Persona
+[ERROR] /home/user/AyntraCore_Master/src/main/java/com/ayntracore/adapters/outbound/database/PersonaPersistenceAdapter.java:[115,39] incompatible types: java.lang.String cannot be converted to com.ayntracore.core.domain.PersonaType
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

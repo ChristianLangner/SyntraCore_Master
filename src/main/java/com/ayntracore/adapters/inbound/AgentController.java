@@ -39,152 +39,98 @@ public class AgentController {
             return ResponseEntity.badRequest().body("Invalid companyId format.");
         }
 
-        String mode = request.getMode();
-        if (mode == null || mode.equalsIgnoreCase("initial") || mode.equalsIgnoreCase("INITIALIZATION")) {
-            mode = "text";
+        String mode = request.getMode() != null ? request.getMode() : "text";
+
+        // Find persona first, as it's needed in all modes and for traits.
+        Optional<Persona> personaOpt = personaOutputPort.findActiveByCompanyId(companyId);
+        if (personaOpt.isEmpty()) {
+            return buildFallbackResponse(companyId);
         }
+        Persona persona = personaOpt.get();
+
+        // Override model and temperature if provided in request, otherwise use persona traits.
+        String model = request.getModel() != null ? request.getModel() : persona.getTraits().get("model");
+        Double temperature = request.getTemperature() != null ? request.getTemperature() : Double.parseDouble(persona.getTraits().getOrDefault("temp", "0.7"));
+
+        log.info("[REQUEST] Mode: '{}', Model: '{}', Temp: {}", mode, model, temperature);
 
         switch (mode) {
             case "text":
-                return handleTextMode(request, companyId);
+                return handleTextMode(request, persona, model, temperature);
             case "image":
-                return handleImageMode(request, companyId);
+                return handleImageMode(request, persona, model, temperature);
             default:
                 log.warn("[SECURITY] Invalid mode specified: {}", request.getMode());
                 return ResponseEntity.badRequest().body("Invalid mode.");
         }
     }
 
-    private ResponseEntity<AgentResponse> handleTextMode(AgentRequest request, UUID companyId) {
-        Persona persona;
-        try {
-            persona = personaOutputPort.findActiveByCompanyId(companyId)
-                    .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
-        } catch (Exception e) {
-            log.warn("[FALLBACK] Persona not found for companyId {}. Returning Ayntra Guardian fallback. Reason: {}", companyId, e.getMessage());
-
-            UiHints uiHints = UiHints.builder()
-                    .primaryColor("#FF0000") // Red for error/fallback
-                    .theme("dark")
-                    .personaName("Ayntra Guardian")
-                    .build();
-
-            AgentResponse agentResponse = AgentResponse.builder()
-                    .shortAnswer("Die angeforderte Persona konnte nicht geladen werden oder es ist keine als 'aktiv' markiert. Der Ayntra Guardian ist als Platzhalter eingesprungen.")
-                    .sources(List.of())
-                    .uiHints(uiHints)
-                    .build();
-
-            return ResponseEntity.ok(agentResponse);
-        }
-
+    private ResponseEntity<AgentResponse> handleTextMode(AgentRequest request, Persona persona, String model, Double temperature) {
         RAGCoordinationService.RAGResponse ragResponse = ragService.generateResponseWithContextAdvanced(
                 request.getMessage(),
                 persona,
                 5, // contextLimit
-                MIN_SIMILARITY_THRESHOLD
+                MIN_SIMILARITY_THRESHOLD,
+                model,
+                temperature
         );
 
         List<Source> sources = ragResponse.usedContexts().stream()
-                .filter(context -> {
-                    if (context.similarity() < MIN_SIMILARITY_THRESHOLD) {
-                        log.warn("[QUALITY] LOW_RELEVANCE_WARNING: Source {} has similarity {} which is below the threshold of {}", context.source(), context.similarity(), MIN_SIMILARITY_THRESHOLD);
-                        return false;
-                    }
-                    return true;
-                })
                 .map(context -> Source.builder()
                         .sourceName(context.source())
                         .relevance(context.similarity())
-                        .link(null) // Link is not available in the context metadata
                         .build())
                 .collect(Collectors.toList());
 
-        UiHints uiHints = UiHints.builder()
-                .primaryColor(persona.getTraits().get("primaryColor"))
-                .theme(persona.getTraits().get("theme"))
-                .personaName(persona.getName())
-                .build();
-
+        UiHints uiHints = buildUiHints(persona);
         AgentResponse agentResponse = AgentResponse.builder()
                 .shortAnswer(ragResponse.llmResponse())
-                .longAnswer(null) // Not yet implemented
                 .sources(sources)
                 .uiHints(uiHints)
                 .build();
 
-        System.out.println("DEBUG RESPONSE: " + agentResponse.getShortAnswer());
-
         return ResponseEntity.ok(agentResponse);
     }
-    
-    @PostMapping("/generate-image")
-    public ResponseEntity<?> generateImage(@RequestBody Map<String, String> request) {
-        UUID companyId = UUID.fromString(request.get("companyId"));
-        String prompt = request.get("prompt");
 
-        Persona persona = personaOutputPort.findActiveByCompanyId(companyId)
-                .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
-
-        String finalPrompt = persona.getVisualDna() + ", " + prompt;
-
-        ImageGenerationPort.ImageGenerationResponse imageResponse = imageGenerationService.generateImageAdvanced(
-                finalPrompt,
-                persona,
-                "low quality, blurry, distorted", // negative prompt
-                512, // width
-                512, // height
-                30, // steps
-                persona.getTraits().get("modelId")
-        );
-
-        return ResponseEntity.ok(Map.of("imageUrl", imageResponse.imageUrl()));
-    }
-
-    private ResponseEntity<AgentResponse> handleImageMode(AgentRequest request, UUID companyId) {
-        Persona persona;
-        try {
-            persona = personaOutputPort.findActiveByCompanyId(companyId)
-                    .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
-        } catch (Exception e) {
-            log.warn("[FALLBACK] Persona not found for companyId {}. Returning Ayntra Guardian fallback for image mode. Reason: {}", companyId, e.getMessage());
-
-            UiHints uiHints = UiHints.builder()
-                    .primaryColor("#FF0000")
-                    .theme("dark")
-                    .personaName("Ayntra Guardian")
-                    .build();
-
-            AgentResponse agentResponse = AgentResponse.builder()
-                    .imageUrl(null)
-                    .shortAnswer("Bild-Persona nicht gefunden. Der Ayntra Guardian ist als Platzhalter eingesprungen.")
-                    .uiHints(uiHints)
-                    .build();
-
-            return ResponseEntity.ok(agentResponse);
-        }
-
+    private ResponseEntity<AgentResponse> handleImageMode(AgentRequest request, Persona persona, String model, Double temperature) {
         ImageGenerationPort.ImageGenerationResponse imageResponse = imageGenerationService.generateImageAdvanced(
                 request.getMessage(),
                 persona,
-                "low quality, blurry, distorted", // negative prompt
-                512, // width
-                512, // height
-                30, // steps
-                persona.getTraits().get("modelId")
+                "low quality, blurry, distorted, ugly", // Universal negative prompt
+                1024, // width
+                1024, // height
+                20,   // steps
+                model  // Dynamic model from request/persona
         );
 
-        UiHints uiHints = UiHints.builder()
-                .primaryColor(persona.getTraits().get("primaryColor"))
-                .theme(persona.getTraits().get("theme"))
-                .personaName(persona.getName())
-                .build();
-
+        UiHints uiHints = buildUiHints(persona);
         AgentResponse agentResponse = AgentResponse.builder()
                 .imageUrl(imageResponse.imageUrl())
                 .uiHints(uiHints)
                 .build();
 
+        return ResponseEntity.ok(agentResponse);
+    }
+
+    private UiHints buildUiHints(Persona persona) {
+        return UiHints.builder()
+                .primaryColor(persona.getTraits().get("primaryColor"))
+                .theme(persona.getTraits().get("theme"))
+                .personaName(persona.getName())
+                .build();
+    }
+
+    private ResponseEntity<AgentResponse> buildFallbackResponse(UUID companyId) {
+        log.warn("[FALLBACK] Persona not found for companyId {}. Returning Ayntra Guardian fallback.", companyId);
+        UiHints uiHints = UiHints.builder()
+                .primaryColor("#FF0000")
+                .theme("dark")
+                .personaName("Ayntra Guardian")
+                .build();
+        AgentResponse agentResponse = AgentResponse.builder()
+                .shortAnswer("Die angeforderte Persona konnte nicht geladen werden. Der Ayntra Guardian ist als Platzhalter eingesprungen.")
+                .uiHints(uiHints)
+                .build();
         return ResponseEntity.ok(agentResponse);
     }
 }

@@ -1,0 +1,312 @@
+// Autor: Christian Langner
+<!DOCTYPE html>
+<html lang="de" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AyntraCore | Admin-Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans min-h-screen p-8">
+
+<div class="max-w-6xl mx-auto space-y-12">
+    <header class="flex justify-between items-center border-b border-gray-700 pb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-blue-400">AyntraCore Admin-Panel</h1>
+            <p class="text-sm text-gray-400">Knowledge • Tickets • Persona Studio</p>
+        </div>
+        <a href="/index.html" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded transition">Zum Live-Support</a>
+    </header>
+
+    <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+        <h2 class="text-xl font-semibold mb-4 text-green-400">Neues Wissen hinzufügen (RAG-Ingest)</h2>
+        <form action="/admin/add-knowledge" method="post" class="space-y-4">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Kategorie (z.B. Installation, Login)</label>
+                <input type="text" name="category" required
+                       class="w-full bg-gray-700 border border-gray-600 rounded p-2 focus:border-blue-500 outline-none">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Inhalt (Wissenstext für die KI)</label>
+                <textarea name="content" rows="4" required
+                          class="w-full bg-gray-700 border border-gray-600 rounded p-2 focus:border-blue-500 outline-none"></textarea>
+            </div>
+            <button type="submit" class="bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded font-bold transition">
+                Wissen speichern
+            </button>
+        </form>
+    </section>
+
+    <!-- UPDATE #58: Persona Studio -->
+    <section class="bg-gray-800 p-6 rounded-xl border border-gray-700 shadow-lg">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-semibold text-purple-300">Persona Studio</h2>
+            <span class="text-xs text-gray-400">// UPDATE #58</span>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+                <form method="post" action="/admin/update-persona" class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1" for="name">Name</label>
+                            <input id="name" name="name" type="text" placeholder="z.B. SyntraBot"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded p-2 focus:border-blue-500 outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1" for="style">Speaking Style</label>
+                            <input id="style" name="style" type="text" placeholder="z.B. freundlich, kurz, lösungsorientiert"
+                                   class="w-full bg-gray-700 border border-gray-600 rounded p-2 focus:border-blue-500 outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1" for="prompt">System Prompt</label>
+                        <textarea id="prompt" name="prompt" rows="5"
+                                  placeholder="Identität/Rolle des Bots..."
+                                  class="w-full bg-gray-700 border border-gray-600 rounded p-2 focus:border-blue-500 outline-none"></textarea>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between">
+                            <label class="block text-sm text-gray-400 mb-1" for="traitsJson">Traits (JSON)</label>
+                            <div class="flex gap-2 flex-wrap justify-end">
+                                <button type="button" onclick="applyPreset('friendly')"
+                                        class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Preset: Friendly</button>
+                                <button type="button" onclick="applyPreset('direct')"
+                                        class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Preset: Direct</button>
+                                <button type="button" onclick="applyPreset('formal')"
+                                        class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Preset: Formal</button>
+                                <button type="button" onclick="beautifyJson()"
+                                        class="text-xs bg-blue-700 hover:bg-blue-600 px-2 py-1 rounded">Beautify</button>
+                                <button type="button" onclick="loadCurrentPersona()"
+                                        class="text-xs bg-purple-700 hover:bg-purple-600 px-2 py-1 rounded">Load current</button>
+                            </div>
+                        </div>
+
+                        <textarea id="traitsJson" name="traitsJson" rows="6"
+                                  placeholder='{"avatarUrl":"/static/personas/default.png","role":"Support","responseFormat":"1) Ursache 2) Fix 3) Verify"}'
+                                  class="w-full font-mono text-sm bg-gray-900 border border-gray-700 rounded p-3 focus:border-blue-500 outline-none"></textarea>
+
+                        <div class="flex items-center justify-between mt-2">
+                            <p class="text-xs text-gray-400">
+                                Tipp: Du kannst beliebige Keys hinzufügen (z.B. <span class="font-mono">avatarUrl</span>, <span class="font-mono">themeColor</span>).
+                            </p>
+                            <span id="jsonStatus" class="text-xs text-gray-400"></span>
+                        </div>
+                    </div>
+
+                    <details class="bg-gray-900 border border-gray-700 rounded p-3">
+                        <summary class="cursor-pointer text-sm text-gray-300">Advanced: Prompt Template & Example Dialog</summary>
+                        <div class="mt-3 space-y-3">
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm text-gray-400 mb-1" for="promptTemplate">Prompt Template</label>
+                                <button type="button" onclick="resetTemplate()"
+                                        class="text-xs bg-gray-700 hover:bg-gray-600 px-2 py-1 rounded">Reset Template</button>
+                            </div>
+                            <textarea id="promptTemplate" name="promptTemplate" rows="6"
+                                      placeholder="Platzhalter: {{systemPrompt}}, {{name}}, {{speakingStyle}}, {{traits}}, {{context}}"
+                                      class="w-full font-mono text-sm bg-gray-900 border border-gray-700 rounded p-3 focus:border-blue-500 outline-none"></textarea>
+
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1" for="exampleDialog">Example Dialog (optional)</label>
+                                <textarea id="exampleDialog" name="exampleDialog" rows="5"
+                                          placeholder="Optionales Beispiel (neutral) für Ton/Struktur."
+                                          class="w-full font-mono text-sm bg-gray-900 border border-gray-700 rounded p-3 focus:border-blue-500 outline-none"></textarea>
+                            </div>
+                        </div>
+                    </details>
+
+                    <div class="flex items-center gap-3 pt-2">
+                        <button type="submit"
+                                class="bg-purple-600 hover:bg-purple-500 px-6 py-2 rounded font-bold transition">
+                            Persona speichern
+                        </button>
+                        <span class="text-xs text-gray-400">Hinweis: Traits JSON wird beim Speichern validiert.</span>
+                    </div>
+                </form>
+            </div>
+
+            <div class="space-y-4">
+                <div class="bg-gray-900 border border-gray-700 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-gray-200 mb-2">Template Cheatsheet</h3>
+                    <ul class="text-xs text-gray-400 space-y-1">
+                        <li><span class="font-mono text-gray-300">{{systemPrompt}}</span> – Identität/Rolle</li>
+                        <li><span class="font-mono text-gray-300">{{name}}</span> – Persona-Name</li>
+                        <li><span class="font-mono text-gray-300">{{speakingStyle}}</span> – Stil</li>
+                        <li><span class="font-mono text-gray-300">{{traits}}</span> – Traits gerendert</li>
+                        <li><span class="font-mono text-gray-300">{{context}}</span> – RAG Kontext</li>
+                    </ul>
+                </div>
+
+                <div class="bg-gray-900 border border-gray-700 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-gray-200 mb-2">Avatar Feature</h3>
+                    <p class="text-xs text-gray-400">
+                        Lege im JSON z.B. <span class="font-mono">"avatarUrl": "/static/personas/default.png"</span> fest.
+                        Dann zeigt der Live-Support ein Persona-Bild.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold mb-4 text-blue-400">Aktuelle Wissensdatenbank</h2>
+        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-700 text-gray-300 uppercase text-xs">
+                <tr>
+                    <th class="p-4">UUID (ID)</th>
+                    <th class="p-4">Kategorie</th>
+                    <th class="p-4">Inhalt</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                <tr th:each="entry : ${knowledgeEntries}" class="hover:bg-gray-750 transition">
+                    <td class="p-4 text-xs font-mono text-gray-500" th:text="${entry.id}">UUID</td>
+                    <td class="p-4 font-semibold" th:text="${entry.category}">Kategorie</td>
+                    <td class="p-4 text-gray-400 text-sm" th:text="${entry.content}">Wissenstext</td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section>
+        <h2 class="text-xl font-semibold mb-4 text-yellow-400">Eingegangene Support-Tickets</h2>
+        <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-700 text-gray-300 uppercase text-xs">
+                <tr>
+                    <th class="p-4">Erstellt am</th>
+                    <th class="p-4">Kunde</th>
+                    <th class="p-4">Anfrage</th>
+                    <th class="p-4">KI-Analyse</th>
+                    <th class="p-4">Aktion</th>
+                </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                <tr th:each="ticket : ${openTickets}" class="hover:bg-gray-750 transition">
+                    <td class="p-4 text-sm" th:text="${#temporals.format(ticket.createdAt, 'dd.MM.yyyy HH:mm')}">Datum</td>
+                    <td class="p-4 font-semibold" th:text="${ticket.customerName}">Kunde</td>
+                    <td class="p-4 text-sm text-gray-400" th:text="${ticket.message}">Nachricht</td>
+                    <td class="p-4 text-sm italic text-blue-300" th:text="${ticket.aiAnalysis}">KI Antwort</td>
+                    <td class="p-4">
+                        <form action="/admin/resolve-ticket" method="post">
+                            <input type="hidden" name="ticketId" th:value="${ticket.id}">
+                            <button type="submit" class="text-xs bg-green-700 hover:bg-green-600 px-2 py-1 rounded">Erledigt</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+
+<script type="text/javascript">
+    // UPDATE #58: Persona Studio helpers
+    const defaultTemplate =
+`{{systemPrompt}}
+
+Persona: {{name}}
+Speaking Style: {{speakingStyle}}
+
+Traits:
+{{traits}}
+
+Context:
+{{context}}
+
+Regeln: Antworte hilfreich. Stelle Rückfragen bei Unklarheit. Erfinde nichts.`;
+
+    function resetTemplate() {
+        document.getElementById("promptTemplate").value = defaultTemplate;
+    }
+
+    function beautifyJson() {
+        const el = document.getElementById("traitsJson");
+        const status = document.getElementById("jsonStatus");
+        try {
+            const obj = JSON.parse(el.value || "{}");
+            el.value = JSON.stringify(obj, null, 2);
+            status.textContent = "JSON ok ✓";
+            status.className = "text-xs text-green-400";
+        } catch (e) {
+            status.textContent = "JSON Fehler: " + e.message;
+            status.className = "text-xs text-red-400";
+        }
+    }
+
+    function applyPreset(type) {
+        const presets = {
+            friendly: {
+                name: "Luna",
+                prompt: "Du bist ein freundlicher AyntraCore Support-Bot. Du hilfst Schritt-für-Schritt und fragst nach, wenn etwas unklar ist.",
+                style: "Warm, geduldig, klar strukturiert.",
+                traits: { avatarUrl: "/static/personas/default.png", themeColor: "#A78BFA", responseFormat: "1) Zusammenfassung 2) Schritte 3) Check" }
+            },
+            direct: {
+                name: "Viper",
+                prompt: "Du bist ein direkter AyntraCore Support-Bot. Du lieferst schnelle, pragmatische Lösungen.",
+                style: "Direkt, kurz, technisch präzise.",
+                traits: { avatarUrl: "/static/personas/default.png", themeColor: "#60A5FA", responseFormat: "1) Ursache 2) Fix 3) Verify", askFor: "Logs/Stacktrace bei Fehlern" }
+            },
+            formal: {
+                name: "Aria",
+                prompt: "Du bist ein professioneller AyntraCore Support-Bot. Du antwortest ruhig, souverän und strukturiert.",
+                style: "Formal, ruhig, sehr strukturiert.",
+                traits: { avatarUrl: "/static/personas/default.png", themeColor: "#FBBF24", responseFormat: "(1) Zusammenfassung (2) Ursache (3) Lösung (4) Nächste Schritte" }
+            }
+        };
+
+        const p = presets[type];
+        if (!p) return;
+
+        document.getElementById("name").value = p.name;
+        document.getElementById("prompt").value = p.prompt;
+        document.getElementById("style").value = p.style;
+        document.getElementById("traitsJson").value = JSON.stringify(p.traits, null, 2);
+
+        const tpl = document.getElementById("promptTemplate");
+        if (tpl && (!tpl.value || tpl.value.trim().length === 0)) {
+            tpl.value = defaultTemplate;
+        }
+
+        beautifyJson();
+    }
+
+    async function loadCurrentPersona() {
+        try {
+            const res = await fetch("/admin/persona");
+            if (!res.ok) return;
+            const persona = await res.json();
+
+            document.getElementById("name").value = persona.name ?? "";
+            document.getElementById("prompt").value = persona.systemPrompt ?? "";
+            document.getElementById("style").value = persona.speakingStyle ?? "";
+
+            const traits = persona.traits ?? {};
+            document.getElementById("traitsJson").value = JSON.stringify(traits, null, 2);
+
+            document.getElementById("promptTemplate").value = persona.promptTemplate ?? defaultTemplate;
+            document.getElementById("exampleDialog").value = persona.exampleDialog ?? "";
+
+            beautifyJson();
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    window.addEventListener("load", () => {
+        const tpl = document.getElementById("promptTemplate");
+        if (tpl && (!tpl.value || tpl.value.trim().length === 0)) {
+            tpl.value = defaultTemplate;
+        }
+    });
+</script>
+
+</body>
+</html>
