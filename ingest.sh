@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Konfiguration
-HOST="http://localhost:8080"
+HOST="http://localhost:50000"
 COMPANY_ID="550e8400-e29b-41d4-a716-446655440000"
 
 # Funktion zum Ingestieren einer Datei

@@ -29,4 +29,16 @@ public class InMemoryPersonaAdapter implements PersonaRepositoryPort {
         activeByCompanyId.put(persona.getCompanyId(), persona);
         return persona;
     }
+
+    @Override
+    public Optional<Persona> findById(UUID id) {
+        return activeByCompanyId.values().stream()
+                .filter(p -> p.getId().equals(id))
+                .findFirst();
+    }
+
+    @Override
+    public void deleteById(UUID id) {
+        activeByCompanyId.values().removeIf(p -> p.getId().equals(id));
+    }
 }
