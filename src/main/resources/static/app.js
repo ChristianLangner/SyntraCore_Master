@@ -1,14 +1,14 @@
 
 // Demo‑Tenant
-const currentCompanyId = "c6f0b7a9-6b2a-4d73-9c3c-6a2a1a6b7777";
+const currentCompanyId = "550e8400-e29b-41d4-a716-446655440000";
 
 const PERSONAS = {
-  IHK: {
-    key: "IHK",
-    name: "IHK Wissensbot",
-    style: "Professioneller Support-Stil",
-    traits: { themeColor: "#0EA5E9", avatarUrl: "url('https://images.unsplash.com/photo-1548142813-c348350df52b?w=512&q=80')" },
-    uiHints: { theming: { primaryColor: "#0EA5E9" }, streaming: { enabled: true }, transparency: { showSourceCategories: true } },
+  ASTRA: {
+    key: "ASTRA",
+    name: "Astra Noir",
+    style: "Sardonisch, trocken, desinteressiert.",
+    traits: { themeColor: "#a855f7", avatarUrl: "url('https://images.unsplash.com/photo-1548142813-c348350df52b?w=512&q=80')" },
+    uiHints: { theming: { primaryColor: "#a855f7" }, streaming: { enabled: true }, transparency: { showSourceCategories: true } },
     features: { sourceExplorer: true, gallery: false },
     companyId: currentCompanyId
   },
@@ -284,4 +284,4 @@ function appendMessage(sender, text) {
     chatStream.scrollTop = chatStream.scrollHeight;
 }
 
-window.addEventListener("DOMContentLoaded", () => { selectApp("IHK"); });
+window.addEventListener("DOMContentLoaded", () => { selectApp("ASTRA"); });

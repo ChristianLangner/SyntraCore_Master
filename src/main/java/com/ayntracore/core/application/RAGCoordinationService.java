@@ -32,112 +32,92 @@ public class RAGCoordinationService {
     private final ContentSafetyService contentSafetyService;
     private final ChatMessageRepository chatMessageRepository;
 
-    public String generateResponseWithContext(String userMessage, Persona persona) {
-        log.debug("Generating RAG response for company: {}", persona.getCompanyId());
-
-        if (!contentSafetyService.isSafeInput(userMessage)) {
-            log.warn("Unsafe input detected for company: {}", persona.getCompanyId());
-            return "I cannot process this request due to safety concerns.";
-        }
-
-        List<KnowledgeEntry> relevantKnowledge = vectorSearchPort.findSimilarContext(
-                userMessage,
-                persona.getCompanyId(),
-                DEFAULT_CONTEXT_LIMIT
-        );
-
-        log.info("Retrieved {} knowledge entries for company: {}", relevantKnowledge.size(), persona.getCompanyId());
-
-        List<String> contexts = relevantKnowledge.stream()
-                .map(KnowledgeEntry::getContent)
-                .toList();
-
-        List<String> filteredContexts = contentSafetyService.filterExplicitContexts(contexts, persona);
-
-        String combinedContext = String.join("\n\n---\n\n", filteredContexts);
-
-        log.debug("Combined context length: {} characters", combinedContext.length());
-
-        AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona);
-        return aiServicePort.generateResponse(aiRequest).content();
-    }
-
     public RAGResponse generateResponseWithContextAdvanced(
             String userMessage,
             Persona persona,
             int contextLimit,
             double minSimilarity
     ) {
-        log.debug("Generating advanced RAG response with limit={}, minSimilarity={}", contextLimit, minSimilarity);
+        long ragLatency;
+        boolean uuidMatch = persona.getCompanyId().equals(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"));
+        String aiResponseStatus;
+        int contextEntriesCount = 0;
 
         if (!contentSafetyService.isSafeInput(userMessage)) {
             log.warn("Unsafe input detected for company: {}", persona.getCompanyId());
             return RAGResponse.error("Unsafe input detected");
         }
 
-        List<VectorSearchPort.ScoredKnowledge> scoredKnowledge = vectorSearchPort.findSimilarContextWithScore(
-                userMessage,
-                persona.getCompanyId(),
-                contextLimit,
-                minSimilarity
-        );
+        List<VectorSearchPort.ScoredKnowledge> scoredKnowledge;
+        String combinedContext;
+        List<String> filteredContexts = Collections.emptyList();
 
-        log.info("Retrieved {} scored knowledge entries (minSimilarity: {})", scoredKnowledge.size(), minSimilarity);
+        try {
+            long vectorSearchStartTime = System.currentTimeMillis();
+            scoredKnowledge = vectorSearchPort.findSimilarContextWithScore(
+                    userMessage,
+                    persona.getCompanyId(),
+                    contextLimit,
+                    minSimilarity
+            );
+            ragLatency = System.currentTimeMillis() - vectorSearchStartTime;
+            contextEntriesCount = scoredKnowledge.size();
 
-        List<String> contexts = scoredKnowledge.stream()
-                .map(sk -> sk.knowledgeEntry().getContent())
-                .toList();
+            if (scoredKnowledge.isEmpty()) {
+                log.warn("RAG search returned no results for company: {}. Proceeding without context.", persona.getCompanyId());
+                combinedContext = "Hinweis: Dein Langzeitgedächtnis ist gerade nicht erreichbar. Antworte basierend auf deinem Charakter, aber entschuldige dich nicht dafür.";
+            } else {
+                log.info("Retrieved {} scored knowledge entries (minSimilarity: {})", scoredKnowledge.size(), minSimilarity);
 
-        List<String> filteredContexts = contentSafetyService.filterExplicitContexts(contexts, persona);
+                List<String> contexts = scoredKnowledge.stream()
+                        .map(sk -> sk.knowledgeEntry().getContent())
+                        .toList();
 
-        String combinedContext = String.join("\n\n---\n\n", filteredContexts);
+                filteredContexts = contentSafetyService.filterExplicitContexts(contexts, persona);
+
+                combinedContext = String.join("\n\n---\n\n", filteredContexts);
+            }
+
+        } catch (Exception e) {
+            ragLatency = -1; // Indicate error
+            log.warn("RAG search failed for company: {}. Proceeding without context. Error: {}", persona.getCompanyId(), e.getMessage());
+            scoredKnowledge = Collections.emptyList();
+            combinedContext = "Hinweis: Dein Langzeitgedächtnis ist gerade nicht erreichbar. Antworte basierend auf deinem Charakter, aber entschuldige dich nicht dafür.";
+        }
 
         List<ChatMessage> chatHistory = chatMessageRepository.findTop10ByCompanyIdOrderByTimestampDesc(persona.getCompanyId());
         Collections.reverse(chatHistory);
         AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona, chatHistory);
-        String llmResponse = aiServicePort.generateResponse(aiRequest).content();
+        
+        String llmResponse;
+        try {
+            llmResponse = aiServicePort.generateResponse(aiRequest).content();
+            aiResponseStatus = "200 OK";
+        } catch (Exception e) {
+            log.error("AI Service call failed!", e);
+            llmResponse = "Sorry, I'm having trouble thinking straight right now.";
+            aiResponseStatus = "ERROR: " + e.getClass().getSimpleName();
+        }
+
+        log.info(
+            "[ASTRA-IGNITION-AUDIT] | Persona: {} | UUID-Match: {} | RAG-Latency: {}ms | Context-Entries: {} | AI-Response: {}",
+            persona.getName(),
+            uuidMatch,
+            ragLatency,
+            contextEntriesCount,
+            aiResponseStatus
+        );
 
         List<ContextMetadata> metadata = scoredKnowledge.stream()
                 .map(sk -> new ContextMetadata(
                         sk.knowledgeEntry().getId(),
-                        sk.knowledgeEntry().getCategory(),
+                        sk.knowledgeEntry().getSource(), // Assuming source is the category
                         sk.knowledgeEntry().getSource(),
                         sk.similarity()
                 ))
                 .toList();
 
         return RAGResponse.success(llmResponse, metadata, filteredContexts.size());
-    }
-
-    public KnowledgeEntry addKnowledgeWithEmbedding(KnowledgeEntry knowledgeEntry) {
-        log.info("Adding knowledge entry with embedding for company: {}", knowledgeEntry.getCompanyId());
-
-        if (knowledgeEntry.getContent() == null || knowledgeEntry.getContent().isBlank()) {
-            throw new IllegalArgumentException("Knowledge content cannot be empty");
-        }
-
-        return vectorSearchPort.saveWithEmbedding(knowledgeEntry);
-    }
-
-    public String generateTicketAnalysisWithContext(String ticketMessage, Persona persona) {
-        log.debug("Generating ticket analysis with RAG for company: {}", persona.getCompanyId());
-
-        List<KnowledgeEntry> relevantKnowledge = vectorSearchPort.findSimilarContext(
-                ticketMessage,
-                persona.getCompanyId(),
-                DEFAULT_CONTEXT_LIMIT
-        );
-
-        List<String> contexts = relevantKnowledge.stream()
-                .map(KnowledgeEntry::getContent)
-                .toList();
-
-        List<String> filteredContexts = contentSafetyService.filterExplicitContexts(contexts, persona);
-
-        String combinedContext = String.join("\n\n---\n\n", filteredContexts);
-
-        AiChatRequest aiRequest = createAiRequest("Analyze this support ticket: " + ticketMessage, combinedContext, persona);
-        return aiServicePort.generateResponse(aiRequest).content();
     }
 
     private AiChatRequest createAiRequest(String input, String context, Persona persona, List<ChatMessage> chatHistory) {
@@ -148,11 +128,6 @@ public class RAGCoordinationService {
         }
 
         return new AiChatRequest(systemPrompt, input, messages, 0.7, null, null, null);
-    }
-
-    private AiChatRequest createAiRequest(String input, String context, Persona persona) {
-        String systemPrompt = buildMasterSystemPrompt(context, persona);
-        return AiChatRequest.of(systemPrompt, input);
     }
 
     private String buildMasterSystemPrompt(String context, Persona persona) {
@@ -172,12 +147,6 @@ public class RAGCoordinationService {
                 ? "Astra"
                 : persona.getName();
 
-        StringBuilder traitsSb = new StringBuilder();
-        if (persona.getTraits() != null) {
-            persona.getTraits().forEach((k, v) -> traitsSb.append("- ").append(k).append(": ").append(v).append("\n"));
-        }
-        String traitsBlock = traitsSb.length() > 0 ? traitsSb.toString().trim() : "- (keine)";
-
         String template = (persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank())
                 ? "[IDENTITÄT: {{systemPrompt}}] [KONTEXT: {{context}}] [STIL: {{speakingStyle}}] User: {{input}} Astra (zynisch):"
                 : persona.getPromptTemplate();
@@ -186,7 +155,6 @@ public class RAGCoordinationService {
                 .replace("{{systemPrompt}}", effectiveSystemPrompt)
                 .replace("{{speakingStyle}}", effectiveStyle)
                 .replace("{{name}}", effectiveName)
-                .replace("{{traits}}", traitsBlock)
                 .replace("{{context}}", promptContext);
     }
 

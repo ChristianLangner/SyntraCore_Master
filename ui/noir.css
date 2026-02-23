@@ -1,0 +1,47 @@
+:root { 
+    --primary-color:#3B82F6; 
+    --primary-color-translucent: #3B82F61A;
+    --avatar-url: url('https://images.unsplash.com/photo-1527980965255-d3b416303d12?w=256&q=80'); 
+}
+
+.glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 1rem;
+}
+
+.avatar {
+    background-image: var(--avatar-url);
+    background-size: cover;
+    background-position: center;
+}
+
+#toast-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    z-index: 100;
+}
+
+.toast-message {
+    background-color: #ff4d4d;
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.chat-image {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(var(--primary-color-rgb), 0.5);
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+    max-width: 100%;
+}

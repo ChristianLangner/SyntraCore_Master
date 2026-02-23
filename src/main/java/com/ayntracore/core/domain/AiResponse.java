@@ -8,4 +8,7 @@ public record AiResponse(
         String content,
         AiResponseMetadata metadata
 ) {
+    public static AiResponse error(String errorMessage) {
+        return new AiResponse(errorMessage, new AiResponseMetadata(null, 0, 0, 0, AiProvider.OPENAI, "error"));
+    }
 }

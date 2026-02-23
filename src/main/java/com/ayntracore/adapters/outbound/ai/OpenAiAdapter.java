@@ -19,6 +19,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.HttpClientErrorException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,8 +41,8 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
 
     public OpenAiAdapter(@Value("${ai.openrouter.key}") String apiKey,
                          @Value("${openrouter.api.url}") String baseUrl,
-                         @Value("${ai.model.chat}") String model,
-                         @Value("${ai.model.embedding}") String embeddingModel,
+                         @Value("${ai.model.chat:gpt-4o}") String model,
+                         @Value("${ai.model.embedding:text-embedding-3-small}") String embeddingModel,
                          @Value("${ai.model.image}") String imageModel,
                          @Value("${ai.model.image.cheap}") String cheapImageModel,
                          @Value("${ai.model.image.unfiltered}") String unfilteredImageModel,
@@ -73,11 +74,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
                     "temperature", request.temperature()
             );
 
-            try {
-                log.info("FINAL PAYLOAD: {}", objectMapper.writeValueAsString(requestBody));
-            } catch (JsonProcessingException e) {
-                log.error("Error serializing request body for logging", e);
-            }
+            log.debug("Request Payload: {}", objectMapper.writeValueAsString(requestBody));
 
             Map<String, Object> response = restClient.post()
                     .uri("/chat/completions")
@@ -87,18 +84,24 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
                     .body(Map.class);
 
             if (response == null || !response.containsKey("choices")) {
-                throw new RuntimeException("Empty or invalid response from OpenRouter");
+                log.error("Invalid response from OpenRouter: No 'choices' field");
+                return AiResponse.error("AI provider returned an invalid response.");
             }
 
             List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
+            if (choices.isEmpty()) {
+                log.error("Invalid response from OpenRouter: 'choices' array is empty");
+                return AiResponse.error("AI provider returned no choices.");
+            }
+
             Map<String, Object> firstChoice = choices.get(0);
             Map<String, Object> message = (Map<String, Object>) firstChoice.get("message");
             String content = (String) message.get("content");
 
-            Map<String, Object> usage = (Map<String, Object>) response.get("usage");
-            long promptTokens = ((Number) usage.get("prompt_tokens")).longValue();
-            long completionTokens = ((Number) usage.get("completion_tokens")).longValue();
-            long totalTokens = ((Number) usage.get("total_tokens")).longValue();
+            Map<String, Object> usage = (Map<String, Object>) response.getOrDefault("usage", Map.of());
+            long promptTokens = ((Number) usage.getOrDefault("prompt_tokens", 0)).longValue();
+            long completionTokens = ((Number) usage.getOrDefault("completion_tokens", 0)).longValue();
+            long totalTokens = ((Number) usage.getOrDefault("total_tokens", 0)).longValue();
 
             log.info("OpenRouter usage: {} prompt, {} completion, {} total tokens", promptTokens, completionTokens, totalTokens);
 
@@ -113,9 +116,12 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
 
             return new AiResponse(content, metadata);
 
+        } catch (HttpClientErrorException e) {
+            log.error("HTTP Error calling OpenRouter API: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return AiResponse.error("AI Provider is currently experiencing issues (HTTP Error).");
         } catch (Exception e) {
-            log.error("Error calling OpenRouter API: {}", e.getMessage());
-            throw new RuntimeException("AI Provider currently unavailable (OpenRouter)", e);
+            log.error("Error calling OpenRouter API: {}", e.getMessage(), e);
+            return AiResponse.error("An unexpected error occurred with the AI Provider.");
         }
     }
 
@@ -138,70 +144,64 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
 
     @Override
     public PGvector createEmbedding(String text) {
-        log.info("Creating OpenRouter embedding for model: {}", embeddingModel);
-        
-        if (apiKey == null || apiKey.isBlank()) {
-            log.warn("[CRITICAL] API key is not configured. Returning empty vector. This will cause downstream errors.");
-            return new PGvector(new float[0]);
-        }
-
+        log.info("Creating embedding for text using model: {}", embeddingModel);
         try {
-            Map<String, Object> body = Map.of(
-                    "input", text,
-                    "model", embeddingModel
+            Map<String, Object> requestBody = Map.of(
+                    "model", embeddingModel,
+                    "input", text
             );
 
             Map<String, Object> response = restClient.post()
                     .uri("/embeddings")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
+                    .body(requestBody)
                     .retrieve()
                     .body(Map.class);
 
             if (response == null || !response.containsKey("data")) {
-                throw new RuntimeException("Empty or invalid response from OpenRouter embeddings");
+                log.error("Invalid response from OpenRouter embeddings: No 'data' field");
+                return new PGvector(new float[0]);
             }
 
             List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
-            Map<String, Object> firstData = data.get(0);
-            List<Double> embedding = (List<Double>) firstData.get("embedding");
-
-            float[] floatArray = new float[embedding.size()];
-            for (int i = 0; i < embedding.size(); i++) {
-                floatArray[i] = embedding.get(i).floatValue();
+            if (data.isEmpty() || !data.get(0).containsKey("embedding")) {
+                log.error("Invalid response from OpenRouter embeddings: 'data' is empty or missing 'embedding'");
+                return new PGvector(new float[0]);
             }
 
-            return new PGvector(floatArray);
+            List<Double> embeddingDouble = (List<Double>) data.get(0).get("embedding");
+            float[] embeddingFloat = new float[embeddingDouble.size()];
+            for (int i = 0; i < embeddingDouble.size(); i++) {
+                embeddingFloat[i] = embeddingDouble.get(i).floatValue();
+            }
+
+            return new PGvector(embeddingFloat);
 
         } catch (HttpClientErrorException e) {
-            log.error("Error creating OpenRouter embedding: {}", e.getMessage());
-            log.warn("Astra will answer without vector search.");
+            log.error("HTTP Error calling OpenRouter embeddings API: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
             return new PGvector(new float[0]);
         } catch (Exception e) {
-            log.error("An unexpected error occurred during embedding: {}", e.getMessage());
-            log.warn("Returning empty vector.");
+            log.error("Error calling OpenRouter embeddings API: {}", e.getMessage(), e);
             return new PGvector(new float[0]);
         }
     }
 
     private List<Map<String, Object>> createMessages(AiChatRequest request) {
         List<Map<String, Object>> messages = new ArrayList<>();
-        
-        // Hard-Coded System-Role
+
+        // Use the system prompt from the request.
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(Map.of("role", "system", "content", request.systemPrompt()));
         }
-        
-        // Add previous messages here
-        if (request.getMessages() != null && !request.getMessages().isEmpty()) {
-            messages.addAll(request.getMessages());
+
+        // Add historical messages if they exist.
+        if (request.messages() != null && !request.messages().isEmpty()) {
+            messages.addAll(request.messages());
         }
-        
+
+        // Finally, add the current user's message.
         messages.add(Map.of("role", "user", "content", request.userMessage()));
-        
-        // Prompt-Priming
-        messages.add(Map.of("role", "assistant", "content", "Astra (zynisch):"));
-        
+
         return messages;
     }
 
@@ -221,42 +221,39 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
         }
 
         try {
-            Map<String, Object> message = new HashMap<>();
-            message.put("role", "user");
-            message.put("content", prompt);
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("model", currentModel);
-            body.put("messages", List.of(message));
-            body.put("modalities", List.of("image"));
-
-            if (currentModel.equals(unfilteredImageModel) && request.fixedSeed() != null) {
-                 body.put("seed", request.fixedSeed());
-            }
+            Map<String, Object> body = Map.of(
+                "model", currentModel,
+                "prompt", prompt
+            );
 
             Map<String, Object> response = restClient.post()
-                    .uri("/chat/completions")
+                    .uri("/images/generations")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
                     .body(Map.class);
 
-            if (response == null || !response.containsKey("choices")) {
-                throw new RuntimeException("Empty or invalid response from OpenRouter");
+            if (response == null || !response.containsKey("data")) {
+                log.error("Invalid response from OpenRouter image generation: No 'data' field");
+                return ImageGenerationResponse.error("AI provider returned an invalid image response.");
             }
 
-            List<Map<String, Object>> choices = (List<Map<String, Object>>) response.get("choices");
-            Map<String, Object> firstChoice = choices.get(0);
-            Map<String, Object> responseMessage = (Map<String, Object>) firstChoice.get("message");
-            String base64Image = (String) responseMessage.get("content");
-
-            String imageUrl = "data:image/png;base64," + base64Image;
+            List<Map<String, Object>> data = (List<Map<String, Object>>) response.get("data");
+            if (data.isEmpty()) {
+                log.error("Invalid response from OpenRouter image generation: 'data' array is empty");
+                return ImageGenerationResponse.error("AI provider returned no image data.");
+            }
+            
+            String imageUrl = (String) data.get(0).get("url");
 
             return ImageGenerationResponse.success(imageUrl, "openrouter-image", request.safetyLevel(), currentModel);
 
+        } catch (HttpClientErrorException e) {
+            log.error("HTTP Error calling OpenRouter API for image generation: {} - {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return ImageGenerationResponse.error("AI Provider for images is facing issues (HTTP Error).");
         } catch (Exception e) {
-            log.error("Error calling OpenRouter API for image generation: {}", e.getMessage());
-            throw new RuntimeException("AI Provider currently unavailable for image generation (OpenRouter)", e);
+            log.error("Error calling OpenRouter API for image generation: {}", e.getMessage(), e);
+            return ImageGenerationResponse.error("An unexpected error occurred during image generation.");
         }
     }
 

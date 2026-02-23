@@ -33,7 +33,7 @@ public class ChatController {
      */
     private final TicketUseCase ticketUseCase;
 
-    @Value("${ayntra.persona.company-id}")
+    @Value("${ayntra.persona.company-id:default-company}")
     private String companyId;
 
     /**

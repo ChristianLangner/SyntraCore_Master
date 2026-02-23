@@ -18,8 +18,10 @@ public class Persona {
     private UUID id;
     private UUID companyId;
     private String name;
+    private String role; // Added role
     private PersonaType personaType;
     private boolean active;
+    @Builder.Default
     private Boolean allowExplicitContent = false;
     private String systemPrompt;
     private String speakingStyle;

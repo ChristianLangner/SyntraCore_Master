@@ -2,11 +2,11 @@
 <!doctype html>
 <html lang="de" class="h-full bg-slate-950">
   <head>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Ayntra Executive Suite</title>
+    <title>Astra Noir</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -41,7 +41,7 @@
     <div class="fixed inset-0 -z-10 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/30 via-slate-900 to-slate-950"></div>
     <div class="mx-auto max-w-[1400px] p-4 md:p-6">
       <header class="mb-4 flex items-center justify-between">
-        <h1 class="text-2xl md:text-3xl font-semibold">AyntraCore <span id="persona-name" class="text-primary">Chameleon</span> Dashboard</h1>
+        <h1 class="text-2xl md:text-3xl font-semibold">Astra Noir <span id="persona-name" class="text-primary"></span> Dashboard</h1>
       </header>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <aside class="lg:col-span-3 space-y-4">
@@ -129,13 +129,15 @@
 
                 if (!response.ok) throw new Error(`API error: ${response.status}`);
                 const data = await response.json();
+                const rawText = data.shortAnswer || '';
+                const formattedContent = (typeof marked !== 'undefined') ? marked.parse(rawText) : rawText;
 
                 if (data.imageUrl) {
                     const imageData = JSON.parse(data.imageUrl);
                     const imageUrl = imageData[0].url;
                     thinkingMessage.querySelector('.message-content').innerHTML = `<img src="${imageUrl}" class="chat-image" />`;
                 } else {
-                    thinkingMessage.querySelector('.message-content').innerHTML = marked.parse(data.shortAnswer || '');
+                    thinkingMessage.querySelector('.message-content').innerHTML = formattedContent;
                     if (data.sources) renderRag(data.sources, 0.5);
                 }
 

@@ -14,4 +14,8 @@ public interface PersonaRepositoryPort {
     Optional<Persona> findActiveByCompanyId(UUID companyId);
 
     Persona save(Persona persona);
+    
+    Optional<Persona> findById(UUID id);
+
+    void deleteById(UUID id);
 }
