@@ -43,6 +43,10 @@ public class PersonaJpaEntity {
     private PersonaType personaType;
 
     @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default true")
+    private boolean active = true;
+
+    @Builder.Default
     @Column(name = "allow_explicit_content", nullable = false)
     private Boolean allowExplicitContent = false;
 

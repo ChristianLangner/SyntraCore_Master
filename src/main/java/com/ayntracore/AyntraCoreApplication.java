@@ -2,7 +2,7 @@
 package com.ayntracore;
 
 import com.ayntracore.core.domain.Persona;
-import com.ayntracore.core.ports.PersonaRepositoryPort;
+import com.ayntracore.core.ports.PersonaOutputPort;
 // import com.ayntracore.core.services.TicketService; // Auskommentiert, da heartbeatTest deaktiviert ist
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -43,10 +43,10 @@ public class AyntraCoreApplication {
     */
 
     @Bean
-    public CommandLineRunner createTestPersona(PersonaRepositoryPort personaRepository) {
+    public CommandLineRunner createTestPersona(PersonaOutputPort personaOutputPort) {
         return args -> {
             UUID companyId = UUID.fromString("550e8400-e29b-41d4-a716-446655440000");
-            if (personaRepository.findActiveByCompanyId(companyId).isEmpty()) {
+            if (personaOutputPort.findActiveByCompanyId(companyId).isEmpty()) {
                 Persona testPersona = new Persona();
                 testPersona.setCompanyId(companyId);
                 testPersona.setName("Ayntra Wissensbot");
@@ -58,7 +58,7 @@ public class AyntraCoreApplication {
                         "denoiseStrength", "0.75"
                 ));
                 testPersona.setActive(true);
-                personaRepository.save(testPersona);
+                personaOutputPort.save(testPersona);
                 System.out.println("[BOOTSTRAP] Test-Persona created for companyId: " + companyId);
             }
         };

@@ -161,7 +161,7 @@ public class PersonaService {
         }
 
         if (exampleDialog != null && !exampleDialog.isBlank()) {
-            persona.setExampleDialog(exampleDialog);
+            persona.setExampleDialog(null);
         } else if (exampleDialog != null) {
             persona.setExampleDialog(null);
         }

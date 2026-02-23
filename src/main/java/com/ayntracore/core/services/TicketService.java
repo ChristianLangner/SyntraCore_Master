@@ -27,7 +27,7 @@ public class TicketService implements TicketUseCase {
     private final TicketRepositoryPort ticketRepository;
     private final KnowledgeBasePort knowledgeBase;
     private final UniversalAiPort aiService;
-    private final PersonaRepositoryPort personaRepository;
+    private final PersonaOutputPort personaOutputPort;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<KnowledgeEntry> getAllKnowledge() {
@@ -63,7 +63,7 @@ public class TicketService implements TicketUseCase {
                               String promptTemplate,
                               String exampleDialog) {
 
-        Persona persona = personaRepository.findActiveByCompanyId(companyId)
+        Persona persona = personaOutputPort.findActiveByCompanyId(companyId)
                 .orElseGet(() -> Persona.builder()
                         .companyId(companyId)
                         .name("Default Persona")
@@ -90,7 +90,7 @@ public class TicketService implements TicketUseCase {
             persona.setExampleDialog(null);
         }
 
-        personaRepository.save(persona);
+        personaOutputPort.save(persona);
     }
 
     public Persona getCurrentPersona(UUID companyId) {
@@ -114,7 +114,7 @@ public class TicketService implements TicketUseCase {
     }
 
     private Persona getPersonaForCompany(UUID companyId) {
-        return personaRepository.findActiveByCompanyId(companyId)
+        return personaOutputPort.findActiveByCompanyId(companyId)
                 .orElseGet(() -> Persona.builder()
                         .companyId(companyId)
                         .name("Default Persona")

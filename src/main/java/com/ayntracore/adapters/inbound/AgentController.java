@@ -5,7 +5,7 @@ import com.ayntracore.core.application.ImageGenerationService;
 import com.ayntracore.core.application.RAGCoordinationService;
 import com.ayntracore.core.domain.Persona;
 import com.ayntracore.core.ports.ImageGenerationPort;
-import com.ayntracore.core.ports.PersonaRepositoryPort;
+import com.ayntracore.core.ports.PersonaOutputPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -26,7 +26,7 @@ public class AgentController {
 
     private final RAGCoordinationService ragService;
     private final ImageGenerationService imageGenerationService;
-    private final PersonaRepositoryPort personaRepository;
+    private final PersonaOutputPort personaOutputPort;
     private static final double MIN_SIMILARITY_THRESHOLD = 0.5;
 
     @PostMapping("/entry")
@@ -58,7 +58,7 @@ public class AgentController {
     private ResponseEntity<AgentResponse> handleTextMode(AgentRequest request, UUID companyId) {
         Persona persona;
         try {
-            persona = personaRepository.findActiveByCompanyId(companyId)
+            persona = personaOutputPort.findActiveByCompanyId(companyId)
                     .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
         } catch (Exception e) {
             log.warn("[FALLBACK] Persona not found for companyId {}. Returning Ayntra Guardian fallback. Reason: {}", companyId, e.getMessage());
@@ -123,7 +123,7 @@ public class AgentController {
         UUID companyId = UUID.fromString(request.get("companyId"));
         String prompt = request.get("prompt");
 
-        Persona persona = personaRepository.findActiveByCompanyId(companyId)
+        Persona persona = personaOutputPort.findActiveByCompanyId(companyId)
                 .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
 
         String finalPrompt = persona.getVisualDna() + ", " + prompt;
@@ -144,7 +144,7 @@ public class AgentController {
     private ResponseEntity<AgentResponse> handleImageMode(AgentRequest request, UUID companyId) {
         Persona persona;
         try {
-            persona = personaRepository.findActiveByCompanyId(companyId)
+            persona = personaOutputPort.findActiveByCompanyId(companyId)
                     .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
         } catch (Exception e) {
             log.warn("[FALLBACK] Persona not found for companyId {}. Returning Ayntra Guardian fallback for image mode. Reason: {}", companyId, e.getMessage());

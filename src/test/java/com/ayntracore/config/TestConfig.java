@@ -4,7 +4,7 @@ import com.ayntracore.core.application.ImageGenerationService;
 import com.ayntracore.core.application.RAGCoordinationService;
 import com.ayntracore.core.domain.KnowledgeEntry;
 import com.ayntracore.core.ports.KnowledgeBasePort;
-import com.ayntracore.core.ports.PersonaRepositoryPort;
+import com.ayntracore.core.ports.PersonaOutputPort;
 import com.ayntracore.core.ports.VectorSearchPort;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -58,8 +58,8 @@ public class TestConfig {
 
     @Bean
     @Primary
-    public PersonaRepositoryPort personaRepositoryPort() {
-        return Mockito.mock(PersonaRepositoryPort.class);
+    public PersonaOutputPort personaOutputPort() {
+        return Mockito.mock(PersonaOutputPort.class);
     }
 
     @Bean
