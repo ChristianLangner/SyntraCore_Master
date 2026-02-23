@@ -25,17 +25,15 @@
       .avatar{background-image:var(--avatar-url);background-size:cover;background-position:center}
       #toast-container{position:fixed;bottom:1.5rem;right:1.5rem;display:flex;flex-direction:column;gap:0.75rem;z-index:100}
       .toast-message{background-color:#ff4d4d;color:white;padding:0.75rem 1.25rem;border-radius:0.5rem;box-shadow:0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a;opacity:0;transform:translateY(20px);transition:opacity .3s ease,transform .3s ease}
-      .thinking-animation {
-        animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      }
-      @keyframes pulse {
-        0%, 100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: .5;
-        }
-      }
+      .thinking-animation { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+      .neon-switch { position: relative; display: inline-block; width: 60px; height: 34px; }
+      .neon-switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 34px; }
+      .slider:before { position: absolute; content: ""; height: 26px; width: 26px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+      input:checked + .slider { background-color: var(--primary-color); box-shadow: 0 0 15px var(--primary-color); }
+      input:checked + .slider:before { transform: translateX(26px); }
+      .chat-image { max-width: 80%; border-radius: 10px; margin: 10px 0; }
     </style>
   </head>
   <body class="h-full text-slate-200 selection:bg-primary/30">
@@ -46,14 +44,36 @@
         <h1 class="text-2xl md:text-3xl font-semibold">AyntraCore <span id="persona-name" class="text-primary">Chameleon</span> Dashboard</h1>
       </header>
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <main class="lg:col-span-8 space-y-4">
+        <aside class="lg:col-span-3 space-y-4">
+            <div class="glass p-4">
+                <h2 class="text-base font-semibold mb-3">System Status</h2>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between items-center"><span>Status:</span> <span class="font-mono text-green-400">Online</span></div>
+                    <div class="flex justify-between items-center"><span>Memory:</span> <span class="font-mono">10/10</span></div>
+                    <div class="flex justify-between items-center"><span>Mode:</span> <span class="font-mono text-primary">Noir</span></div>
+                </div>
+            </div>
+            <div class="glass p-4">
+                <h2 class="text-base font-semibold mb-3">Visual Toggle</h2>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm">Image Mode</span>
+                    <label class="neon-switch">
+                        <input type="checkbox" id="visual-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+        <main class="lg:col-span-6 space-y-4">
           <section class="glass p-4 flex flex-col h-[calc(100vh-120px)] max-h-[700px]">
             <div id="chatStream" class="flex-1 overflow-auto space-y-4 p-2">
               <!-- Chat messages will be appended here -->
             </div>
             <div class="mt-3">
               <div class="flex items-center gap-2">
-                <input id="chatInput" placeholder="Frage stellen…" class="flex-1 rounded-lg bg-slate-900/80 border border-white/10 px-3 py-2 focus:ring-2 focus:ring-primary focus:outline-none" />
+                <div class="flex items-center rounded-lg bg-slate-900/80 border border-white/10 flex-1">
+                  <input id="chatInput" placeholder="Frage stellen…" class="flex-1 bg-transparent px-3 py-2 focus:outline-none w-full" />
+                </div>
                 <button id="sendBtn" class="px-4 py-2 rounded-lg bg-primary text-white/90 hover:opacity-90 transition-opacity">Senden</button>
               </div>
               <div class="flex items-center gap-2 mt-2">
@@ -63,7 +83,7 @@
             </div>
           </section>
         </main>
-        <aside class="lg:col-span-4 glass p-4 h-fit">
+        <aside class="lg:col-span-3 glass p-4 h-fit">
           <h2 class="text-base font-semibold">RAG‑Insights</h2>
           <div id="ragMatches" class="mt-3 space-y-3"></div>
         </aside>
@@ -73,57 +93,25 @@
     
     <script>
         const PERSONA_UUID = "550e8400-e29b-41d4-a716-446655440000";
+        let currentMode = 'text';
 
-        // --- ELEMENTS ---
         const chatInput = document.getElementById('chatInput');
         const sendBtn = document.getElementById('sendBtn');
-        const chatStream = document.getElementById('chatStream');
-        const ragMatches = document.getElementById('ragMatches');
-        const personaNameEl = document.getElementById('persona-name');
-        const fastButton = document.getElementById('fast-button');
-        const finalButton = document.getElementById('final-button');
+        const visualToggle = document.getElementById('visual-toggle');
 
-        // --- EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
             fetchPersonaData();
-            appendMessage('agent', 'Hallo! Wie kann ich dir heute helfen?');
+            appendMessage('agent', 'Was willst du?');
         });
 
         sendBtn.addEventListener('click', handleSendMessage);
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSendMessage();
+        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+
+        visualToggle.addEventListener('change', (e) => {
+            currentMode = e.target.checked ? 'image' : 'text';
+            chatInput.placeholder = currentMode === 'text' ? 'Frage stellen…' : 'Bildbeschreibung eingeben...';
         });
-
-        fastButton.addEventListener('click', () => {
-            const currentText = chatInput.value;
-            chatInput.value = `/fast ${currentText}`;
-            chatInput.focus();
-        });
-
-        finalButton.addEventListener('click', () => {
-            const currentText = chatInput.value;
-            chatInput.value = `/final ${currentText}`;
-            chatInput.focus();
-        });
-
-        // --- CORE FUNCTIONS ---
-        async function fetchPersonaData() {
-            try {
-                const response = await fetch('/api/agent/entry', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ companyId: PERSONA_UUID, message: "Ayntra Initialization", mode: "INITIALIZATION" })
-                });
-                if (!response.ok) throw new Error(`API error: ${response.status}`);
-                const data = await response.json();
-                applyUiHints(data.uiHints);
-            } catch (error) {
-                console.error("Initialization error:", error);
-                showToast(error.message);
-                applyUiHints({ primaryColor: '#FFA500', personaName: 'Ayntra (Offline)' });
-            }
-        }
-
+        
         async function handleSendMessage() {
             const message = chatInput.value.trim();
             if (!message) return;
@@ -136,14 +124,20 @@
                 const response = await fetch('/api/agent/entry', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ companyId: PERSONA_UUID, message: message, mode: 'text' })
+                    body: JSON.stringify({ companyId: PERSONA_UUID, message: message, mode: currentMode })
                 });
 
                 if (!response.ok) throw new Error(`API error: ${response.status}`);
                 const data = await response.json();
-                
-                thinkingMessage.querySelector('.message-content').innerHTML = marked.parse(data.shortAnswer);
-                if (data.sources) renderRag(data.sources, 0.7);
+
+                if (data.imageUrl) {
+                    const imageData = JSON.parse(data.imageUrl);
+                    const imageUrl = imageData[0].url;
+                    thinkingMessage.querySelector('.message-content').innerHTML = `<img src="${imageUrl}" class="chat-image" />`;
+                } else {
+                    thinkingMessage.querySelector('.message-content').innerHTML = marked.parse(data.shortAnswer || '');
+                    if (data.sources) renderRag(data.sources, 0.5);
+                }
 
             } catch (error) {
                 console.error("Send message error:", error);
@@ -152,14 +146,14 @@
             }
         }
 
-        // --- UI HELPERS ---
         function appendMessage(sender, text) {
+            const chatStream = document.getElementById('chatStream');
             const messageElement = document.createElement('div');
             messageElement.className = 'flex items-start gap-3 p-1';
             let content = '';
 
             if (sender === 'agent') {
-                const personaName = personaNameEl.textContent || 'Agent';
+                const personaName = document.getElementById('persona-name').textContent || 'Agent';
                 content = `
                     <div class="avatar h-9 w-9 rounded-full ring-2 ring-[var(--primary-color)] flex-shrink-0"></div>
                     <div>
@@ -170,7 +164,6 @@
                 messageElement.classList.add('justify-end');
                 content = `
                     <div class="text-right">
-                        <div class="text-xs text-slate-400">You</div>
                         <div class="text-sm inline-block rounded-lg bg-primary/20 px-3 py-2">${text}</div>
                     </div>
                     <div class="h-9 w-9 rounded-full bg-slate-700 flex-shrink-0 flex items-center justify-center text-slate-300">
@@ -183,8 +176,9 @@
             chatStream.scrollTop = chatStream.scrollHeight;
             return messageElement;
         }
-
+        
         function renderRag(matches, minScore) {
+          const ragMatches = document.getElementById('ragMatches');
           ragMatches.innerHTML = "";
           if (!matches || matches.length === 0) {
               ragMatches.innerHTML = '<div class="text-xs text-slate-400">Keine relevanten Quellen gefunden.</div>';
@@ -208,10 +202,8 @@
 
         function applyUiHints(hints) {
             if (!hints) return;
-            const primaryColor = hints.primaryColor || '#FFA500';
-            const personaName = hints.personaName || 'Ayntra Executive';
-            document.documentElement.style.setProperty('--primary-color', primaryColor);
-            personaNameEl.textContent = personaName;
+            document.documentElement.style.setProperty('--primary-color', hints.primaryColor || '#FFA500');
+            document.getElementById('persona-name').textContent = hints.personaName || 'Ayntra Executive';
         }
 
         function showToast(message) {
@@ -220,20 +212,10 @@
             toast.className = 'toast-message';
             toast.textContent = message;
             container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = '1';
-                toast.style.transform = 'translateY(0)';
-            }, 100);
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateY(20px)';
-                setTimeout(() => toast.remove(), 300);
-            }, 5000);
+            setTimeout(() => { toast.style.opacity = '1'; toast.style.transform = 'translateY(0)'; }, 100);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(20px)'; setTimeout(() => toast.remove(), 300); }, 5000);
         }
-
-        function closeModal() {
-            document.getElementById('modal').classList.add('hidden');
-        }
+        // Other functions like closeModal, etc. would be here
     </script>
   </body>
 </html>

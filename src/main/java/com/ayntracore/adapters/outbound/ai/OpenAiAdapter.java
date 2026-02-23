@@ -8,6 +8,8 @@ import com.ayntracore.core.domain.AiResponseMetadata;
 import com.ayntracore.core.ports.EmbeddingPort;
 import com.ayntracore.core.ports.ImageGenerationPort;
 import com.ayntracore.core.ports.UniversalAiPort;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pgvector.PGvector;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -34,6 +36,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
     private final String imageModel;
     private final String cheapImageModel;
     private final String unfilteredImageModel;
+    private final ObjectMapper objectMapper;
 
     public OpenAiAdapter(@Value("${ai.openrouter.key}") String apiKey,
                          @Value("${openrouter.api.url}") String baseUrl,
@@ -41,7 +44,8 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
                          @Value("${ai.model.embedding}") String embeddingModel,
                          @Value("${ai.model.image}") String imageModel,
                          @Value("${ai.model.image.cheap}") String cheapImageModel,
-                         @Value("${ai.model.image.unfiltered}") String unfilteredImageModel) {
+                         @Value("${ai.model.image.unfiltered}") String unfilteredImageModel,
+                         ObjectMapper objectMapper) {
         this.apiKey = apiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(baseUrl)
@@ -54,6 +58,7 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
         this.imageModel = imageModel;
         this.cheapImageModel = cheapImageModel;
         this.unfilteredImageModel = unfilteredImageModel;
+        this.objectMapper = objectMapper;
         log.info("OpenRouter API connected");
     }
 
@@ -61,18 +66,23 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
     public AiResponse generateResponse(AiChatRequest request) {
         log.info("Generating OpenRouter response for model: {}", request.model() != null ? request.model() : model);
 
-        // TODO: Morgen hier den Try-Catch-Block für den Modell-Fallback (z.B. auf Llama) einbauen.
         try {
-            Map<String, Object> body = Map.of(
+            Map<String, Object> requestBody = Map.of(
                     "model", request.model() != null ? request.model() : model,
                     "messages", createMessages(request),
                     "temperature", request.temperature()
             );
 
+            try {
+                log.info("FINAL PAYLOAD: {}", objectMapper.writeValueAsString(requestBody));
+            } catch (JsonProcessingException e) {
+                log.error("Error serializing request body for logging", e);
+            }
+
             Map<String, Object> response = restClient.post()
                     .uri("/chat/completions")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
+                    .body(requestBody)
                     .retrieve()
                     .body(Map.class);
 
@@ -176,14 +186,22 @@ public class OpenAiAdapter implements UniversalAiPort, EmbeddingPort, ImageGener
 
     private List<Map<String, Object>> createMessages(AiChatRequest request) {
         List<Map<String, Object>> messages = new ArrayList<>();
+        
+        // Hard-Coded System-Role
         if (request.systemPrompt() != null && !request.systemPrompt().isBlank()) {
             messages.add(Map.of("role", "system", "content", request.systemPrompt()));
         }
+        
         // Add previous messages here
         if (request.getMessages() != null && !request.getMessages().isEmpty()) {
             messages.addAll(request.getMessages());
         }
+        
         messages.add(Map.of("role", "user", "content", request.userMessage()));
+        
+        // Prompt-Priming
+        messages.add(Map.of("role", "assistant", "content", "Astra (zynisch):"));
+        
         return messages;
     }
 

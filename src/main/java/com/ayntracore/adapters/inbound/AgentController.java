@@ -12,6 +12,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,7 +27,7 @@ public class AgentController {
     private final RAGCoordinationService ragService;
     private final ImageGenerationService imageGenerationService;
     private final PersonaRepositoryPort personaRepository;
-    private static final double MIN_SIMILARITY_THRESHOLD = 0.70;
+    private static final double MIN_SIMILARITY_THRESHOLD = 0.5;
 
     @PostMapping("/entry")
     public ResponseEntity<?> entryPoint(@RequestBody AgentRequest request) {
@@ -115,6 +116,29 @@ public class AgentController {
         System.out.println("DEBUG RESPONSE: " + agentResponse.getShortAnswer());
 
         return ResponseEntity.ok(agentResponse);
+    }
+    
+    @PostMapping("/generate-image")
+    public ResponseEntity<?> generateImage(@RequestBody Map<String, String> request) {
+        UUID companyId = UUID.fromString(request.get("companyId"));
+        String prompt = request.get("prompt");
+
+        Persona persona = personaRepository.findActiveByCompanyId(companyId)
+                .orElseThrow(() -> new RuntimeException("No active persona found for company: " + companyId));
+
+        String finalPrompt = persona.getVisualDna() + ", " + prompt;
+
+        ImageGenerationPort.ImageGenerationResponse imageResponse = imageGenerationService.generateImageAdvanced(
+                finalPrompt,
+                persona,
+                "low quality, blurry, distorted", // negative prompt
+                512, // width
+                512, // height
+                30, // steps
+                persona.getTraits().get("modelId")
+        );
+
+        return ResponseEntity.ok(Map.of("imageUrl", imageResponse.imageUrl()));
     }
 
     private ResponseEntity<AgentResponse> handleImageMode(AgentRequest request, UUID companyId) {

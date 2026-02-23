@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -25,6 +26,7 @@ public class RAGCoordinationService {
 
     private static final int DEFAULT_CONTEXT_LIMIT = 5;
     private static final double DEFAULT_MIN_SIMILARITY = 0.5;
+
     private final VectorSearchPort vectorSearchPort;
     private final UniversalAiPort aiServicePort;
     private final ContentSafetyService contentSafetyService;
@@ -91,6 +93,7 @@ public class RAGCoordinationService {
         String combinedContext = String.join("\n\n---\n\n", filteredContexts);
 
         List<ChatMessage> chatHistory = chatMessageRepository.findTop10ByCompanyIdOrderByTimestampDesc(persona.getCompanyId());
+        Collections.reverse(chatHistory);
         AiChatRequest aiRequest = createAiRequest(userMessage, combinedContext, persona, chatHistory);
         String llmResponse = aiServicePort.generateResponse(aiRequest).content();
 
@@ -153,25 +156,30 @@ public class RAGCoordinationService {
     }
 
     private String buildMasterSystemPrompt(String context, Persona persona) {
-        String promptContext = (context != null && !context.isEmpty()) ? context : "Allgemeiner Support.";
-        String effectiveSystemPrompt = (persona == null || persona.getSystemPrompt() == null || persona.getSystemPrompt().isBlank())
-                ? "Du bist ein Support-Experte."
-                : persona.getSystemPrompt();
-        String effectiveStyle = (persona == null || persona.getSpeakingStyle() == null || persona.getSpeakingStyle().isBlank())
-                ? "Freundlich, klar, präzise."
+        if (persona == null) {
+            throw new IllegalArgumentException("Persona is required but was not provided.");
+        }
+        if (persona.getSystemPrompt() == null || persona.getSystemPrompt().isBlank()) {
+            throw new IllegalArgumentException("Persona system prompt is missing or empty.");
+        }
+        
+        String promptContext = (context != null && !context.isEmpty()) ? context : "No specific context provided.";
+        String effectiveSystemPrompt = persona.getSystemPrompt();
+        String effectiveStyle = (persona.getSpeakingStyle() == null || persona.getSpeakingStyle().isBlank())
+                ? "Sardonisch, trocken, desinteressiert."
                 : persona.getSpeakingStyle();
-        String effectiveName = (persona == null || persona.getName() == null || persona.getName().isBlank())
-                ? "Support Assistant"
+        String effectiveName = (persona.getName() == null || persona.getName().isBlank())
+                ? "Astra"
                 : persona.getName();
 
         StringBuilder traitsSb = new StringBuilder();
-        if (persona != null && persona.getTraits() != null) {
+        if (persona.getTraits() != null) {
             persona.getTraits().forEach((k, v) -> traitsSb.append("- ").append(k).append(": ").append(v).append("\n"));
         }
         String traitsBlock = traitsSb.length() > 0 ? traitsSb.toString().trim() : "- (keine)";
 
-        String template = (persona == null || persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank())
-                ? Persona.defaultTemplate()
+        String template = (persona.getPromptTemplate() == null || persona.getPromptTemplate().isBlank())
+                ? "[IDENTITÄT: {{systemPrompt}}] [KONTEXT: {{context}}] [STIL: {{speakingStyle}}] User: {{input}} Astra (zynisch):"
                 : persona.getPromptTemplate();
 
         return template
